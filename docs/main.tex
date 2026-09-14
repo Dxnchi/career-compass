@@ -1,0 +1,36 @@
+\documentclass[11pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{amsmath}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    citecolor=blue
+}
+
+\title{\textbf{Career Compass}\\ \large System Architecture \& Technical Specification}
+\author{Onkarabetse Motale \\ \small Lead Software Architect \& Technical Spec}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\input{sections/01_introduction.tex}
+\input{sections/02_system_architecture.tex}
+\input{sections/03_data_layer.tex}
+\input{sections/04_api_matching_engine.tex}
+\input{sections/05_ci_cd_quality.tex}
+
+\end{document}
