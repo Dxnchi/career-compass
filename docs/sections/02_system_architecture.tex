@@ -1,0 +1,8 @@
+\section{System Architecture}
+\subsection{High-Level Component Interaction}
+The system separates responsibilities cleanly across client and server tiers:
+\begin{enumerate}
+    \item \textbf{Presentation Tier}: Built with modular design components (UI Design System) and camera hardware abstractions (Mobile Scanner UI).
+    \item \textbf{Local Persistence Tier}: SQLite client abstraction providing fast offline caching and history management.
+    \item \textbf{Application Tier}: RESTful Express API delivering parsing, vectorization, and deterministic scoring.
+\end{enumerate}
