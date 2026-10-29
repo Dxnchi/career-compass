@@ -19,7 +19,18 @@ export const INITIAL_SUBJECT_GRADES = [
 ];
 
 export function calculateAPS(subjects) {
-  return subjects.reduce((sum, subject) => sum + subject.level, 0);
+  if (!Array.isArray(subjects)) return 0;
+
+  // Filter out Life Orientation and take the best 6 subjects
+  const nonLo = subjects.filter(
+    (s) => !s.name?.toLowerCase().includes('life orientation')
+  );
+
+  // Sort descending by achievement level
+  nonLo.sort((a, b) => (b.level || 0) - (a.level || 0));
+
+  // Sum top 6 non-LO subjects
+  return nonLo.slice(0, 6).reduce((sum, s) => sum + (s.level || 0), 0);
 }
 
 export const INITIAL_PROGRAM_MATCHES = [
@@ -78,3 +89,86 @@ export const DEADLINES_DATA = [
   { id: 'dl-2', month: 'SEP', day: '30', title: 'Wits General Apps Close', subtitle: 'Ensure NBT results are linked.' },
   { id: 'dl-3', month: 'OCT', day: '31', title: 'NSFAS Funding Opens', subtitle: 'Prepare supporting documents.' },
 ];
+// Add to the bottom of src/data/dataStore.js
+import { supabase } from '../lib/supabase';
+
+/**
+ * Fetches all programmes from Supabase with nested requirements and university info.
+ * Maps DB column names to your UI keys (name -> title, min_aps -> requiredAps).
+ */
+export async function fetchProgramsFromSupabase() {
+  try {
+    const { data, error } = await supabase
+      .from('programmes')
+      .select(`
+        id,
+        name,
+        faculty,
+        min_aps,
+        ecp_available,
+        ecp_min_aps,
+        description,
+        cover_image,
+        institutions (
+          name,
+          code
+        ),
+        programme_requirements (
+          id,
+          subject_name,
+          min_level,
+          is_alternative_group
+        )
+      `);
+
+    if (error) {
+      console.warn('Supabase fetchPrograms error, falling back to initial data:', error.message);
+      return INITIAL_PROGRAM_MATCHES;
+    }
+
+    if (!data || data.length === 0) {
+      return INITIAL_PROGRAM_MATCHES;
+    }
+
+    // Map database shape to match your UI's expected card properties
+    return data.map((prog) => ({
+      id: prog.id,
+      title: prog.name,
+      name: prog.name,
+      faculty: prog.faculty,
+      requiredAps: prog.min_aps,
+      min_aps: prog.min_aps,
+      ecp_available: prog.ecp_available,
+      ecp_min_aps: prog.ecp_min_aps,
+      universityName: prog.institutions?.name || 'South African University',
+      universityShort: prog.institutions?.code || 'SA',
+      description: prog.description || 'Undergraduate degree programme.',
+      coverImage: prog.cover_image || 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
+      programme_requirements: prog.programme_requirements || [],
+    }));
+  } catch (err) {
+    console.error('Network error fetching programs:', err);
+    return INITIAL_PROGRAM_MATCHES;
+  }
+}
+
+/**
+ * Fetches university institutions for ExploreScreen
+ */
+export async function fetchUniversitiesFromSupabase() {
+  try {
+    const { data, error } = await supabase
+      .from('institutions')
+      .select('*');
+
+    if (error) {
+      console.warn('Supabase fetchUniversities error:', error.message);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('Network error fetching universities:', err);
+    return [];
+  }
+}

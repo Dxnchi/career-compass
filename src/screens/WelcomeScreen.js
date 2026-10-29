@@ -1,130 +1,164 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
-import { Compass, ArrowRight, UserPlus, LogIn } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Dimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS, SIZES } from '../components/theme';
 
-export default function WelcomeScreen({ user, onGetStarted, onOpenAuth, onOpenTerms }) {
-  const isAuthenticated = Boolean(user?.name);
-  const firstName = isAuthenticated ? user.name.split(' ')[0] : null;
+const { width, height } = Dimensions.get('window');
 
+export default function WelcomeScreen({ onGetStarted, onOpenAuth }) {
   return (
-    <View style={styles.container}>
-      <View style={styles.heroBox}>
-        <View style={styles.logoBadge}>
-          <Compass color="#3b82f6" size={54} />
+    <SafeAreaView style={styles.container}>
+      {/* Background Decorative Shapes */}
+      {/* Purple top left blob */}
+      <View style={[styles.shape, styles.shapePurple]} />
+      {/* Yellow top right dot */}
+      <View style={[styles.shape, styles.shapeYellow]} />
+      {/* Cyan bottom left blob */}
+      <View style={[styles.shape, styles.shapeCyan]} />
+
+      <View style={styles.content}>
+        {/* Logo Section */}
+        <View style={styles.logoContainer}>
+          <View style={styles.logoIconBg}>
+            <Ionicons name="navigate" size={28} color={COLORS.white} />
+          </View>
+          <Text style={styles.logoText}>Career Compass</Text>
         </View>
-        <Text style={styles.title}>Welcome to Career Compass</Text>
-        <Text style={styles.subtitle}>
-          {isAuthenticated
-            ? `Hi ${firstName}, ready to continue planning your higher education pathway?`
-            : 'Scan your matric report card and discover South African university and bursary matches.'}
+
+        {/* Main Text */}
+        <Text style={styles.title}>
+          Your grades today.{'\n'}Your future tomorrow.
         </Text>
+        <Text style={styles.subtitle}>Scan. Match. Explore.</Text>
       </View>
 
-      <View style={styles.actionBox}>
-        {isAuthenticated ? (
-          <TouchableOpacity style={styles.primaryButton} onPress={onGetStarted}>
-            <Text style={styles.primaryButtonText}>Continue to Home</Text>
-            <ArrowRight color="#ffffff" size={18} />
-          </TouchableOpacity>
-        ) : (
-          <>
-            <TouchableOpacity style={styles.primaryButton} onPress={onOpenAuth}>
-              <UserPlus color="#ffffff" size={18} />
-              <Text style={styles.primaryButtonText}>Get Started / Register</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.secondaryButton} onPress={onOpenAuth}>
-              <LogIn color="#60a5fa" size={18} />
-              <Text style={styles.secondaryButtonText}>Sign In to Account</Text>
-            </TouchableOpacity>
-          </>
-        )}
-
-        <TouchableOpacity onPress={onOpenTerms}>
-          <Text style={styles.termsText}>
-            Protected under POPIA • Terms & Conditions
-          </Text>
+      {/* Footer Buttons */}
+      <View style={styles.footer}>
+        <TouchableOpacity 
+          style={styles.primaryButton} 
+          onPress={onGetStarted}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.primaryButtonText}>Get Started</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          onPress={onOpenAuth} 
+          style={styles.loginButton}
+          activeOpacity={0.6}
+        >
+          <Text style={styles.loginText}>I already have an account</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0a0a0a',
-    justifyContent: 'space-between',
-    padding: 24,
+  container: { 
+    flex: 1, 
+    backgroundColor: COLORS.white, 
+    overflow: 'hidden' // Ensures the background shapes don't spill out
   },
-  heroBox: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  
+  // --- Background Decorative Shapes ---
+  shape: { 
+    position: 'absolute', 
+    borderRadius: 1000 // Makes them perfectly round/blobby
   },
-  logoBadge: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: '#111827',
-    borderWidth: 2,
-    borderColor: '#1e3a8a',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
+  shapePurple: { 
+    width: 400, 
+    height: 400, 
+    backgroundColor: COLORS.primary, 
+    top: -150, 
+    left: -100, 
+    opacity: 0.9 
   },
-  title: {
-    color: '#f4f4f5',
-    fontSize: 26,
-    fontWeight: 'bold',
-    textAlign: 'center',
+  shapeYellow: { 
+    width: 140, 
+    height: 140, 
+    backgroundColor: COLORS.accentYellow, 
+    top: 80, 
+    right: -20 
   },
-  subtitle: {
-    color: '#a1a1aa',
-    fontSize: 15,
-    textAlign: 'center',
-    marginTop: 12,
-    lineHeight: 22,
-    maxWidth: 290,
+  shapeCyan: { 
+    width: 250, 
+    height: 250, 
+    backgroundColor: COLORS.secondary, 
+    bottom: -50, 
+    left: -100,
+    opacity: 0.8 
   },
-  actionBox: {
-    gap: 12,
-    marginBottom: 20,
+
+  // --- Content ---
+  content: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    paddingHorizontal: SIZES.padding,
+    marginTop: 60 
   },
-  primaryButton: {
-    backgroundColor: '#2563eb',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 16,
+  logoContainer: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 40 
+  },
+  logoIconBg: {
+    width: 48,
+    height: 48,
+    backgroundColor: COLORS.primary,
     borderRadius: 14,
-    gap: 8,
-  },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  secondaryButton: {
-    backgroundColor: '#141416',
-    borderWidth: 1,
-    borderColor: '#27272a',
-    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 14,
-    gap: 8,
+    transform: [{ rotate: '-15deg' }] // Adds that playful angled look
   },
-  secondaryButtonText: {
-    color: '#60a5fa',
-    fontSize: 14,
-    fontWeight: '600',
+  logoText: { 
+    fontSize: 26, 
+    fontWeight: '800', 
+    color: COLORS.textDark, 
+    marginLeft: 12 
   },
-  termsText: {
-    color: '#71717a',
-    textAlign: 'center',
-    fontSize: 12,
-    marginTop: 4,
+  title: { 
+    fontSize: 34, 
+    fontWeight: '800', 
+    color: COLORS.textDark, 
+    lineHeight: 42, 
+    marginBottom: 16 
   },
+  subtitle: { 
+    fontSize: SIZES.h3, 
+    color: COLORS.textGray, 
+    fontWeight: '500' 
+  },
+  
+  // --- Footer ---
+  footer: { 
+    paddingHorizontal: SIZES.padding, 
+    paddingBottom: 40 
+  },
+  primaryButton: { 
+    backgroundColor: COLORS.primary, 
+    paddingVertical: 18, 
+    borderRadius: SIZES.radius, 
+    alignItems: 'center',
+    // Custom shadow to make the purple button pop
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8 
+  },
+  primaryButtonText: { 
+    color: COLORS.white, 
+    fontSize: 16, 
+    fontWeight: 'bold' 
+  },
+  loginButton: { 
+    marginTop: 20, 
+    alignItems: 'center' 
+  },
+  loginText: { 
+    color: COLORS.primary, 
+    fontSize: 14, 
+    fontWeight: '600' 
+  }
 });

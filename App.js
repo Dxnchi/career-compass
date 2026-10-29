@@ -1,15 +1,17 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { StyleSheet, View, SafeAreaView, StatusBar, Animated } from 'react-native';
+import { StyleSheet, SafeAreaView, StatusBar, Animated } from 'react-native';
 
 import {
   INITIAL_SUBJECT_GRADES,
   INITIAL_PROGRAM_MATCHES,
   DEADLINES_DATA,
-  calculateAPS,
   fetchProgramsFromSupabase,
   fetchUniversitiesFromSupabase,
 } from './src/data/dataStore';
 
+// Utilities & Services
+import { calculateAPS } from './src/utils/apsCalculator';
+import { evaluateStudentEligibility } from './src/services/matchingEngine';
 import { supabase } from './src/lib/supabase';
 
 // Components & Modals
@@ -33,7 +35,7 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState('welcome');
   const [user, setUser] = useState(null);
   const [grades, setGrades] = useState(INITIAL_SUBJECT_GRADES);
-  const [matches, setMatches] = useState(INITIAL_PROGRAM_MATCHES);
+  const [programs, setPrograms] = useState(INITIAL_PROGRAM_MATCHES);
   const [universities, setUniversities] = useState([]);
   const [selectedProgram, setSelectedProgram] = useState(INITIAL_PROGRAM_MATCHES[0]);
   const [appModalVisible, setAppModalVisible] = useState(false);
@@ -74,6 +76,7 @@ export default function App() {
   };
 
   useEffect(() => {
+    // 1. Check existing session and fetch user profile
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         supabase
@@ -96,6 +99,7 @@ export default function App() {
       }
     });
 
+    // 2. Auth state subscription
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
         setUser(null);
@@ -103,18 +107,22 @@ export default function App() {
       }
     });
 
-    // Seed/Load database
+    // 3. Load programmes and universities from Supabase
     async function loadData() {
-      const [dbProgs, dbUnis] = await Promise.all([
-        fetchProgramsFromSupabase(),
-        fetchUniversitiesFromSupabase(),
-      ]);
-      if (dbProgs && dbProgs.length > 0) {
-        setMatches(dbProgs);
-        setSelectedProgram(dbProgs[0]);
-      }
-      if (dbUnis && dbUnis.length > 0) {
-        setUniversities(dbUnis);
+      try {
+        const [dbProgs, dbUnis] = await Promise.all([
+          fetchProgramsFromSupabase(),
+          fetchUniversitiesFromSupabase(),
+        ]);
+        if (dbProgs && dbProgs.length > 0) {
+          setPrograms(dbProgs);
+          setSelectedProgram(dbProgs[0]);
+        }
+        if (dbUnis && dbUnis.length > 0) {
+          setUniversities(dbUnis);
+        }
+      } catch (err) {
+        console.warn('Failed to load database records, using initial defaults:', err);
       }
     }
     loadData();
@@ -122,33 +130,40 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const currentAps = useMemo(() => calculateAPS(grades), [grades]);
+  // Recalculate APS whenever grades change
+  const currentAps = useMemo(() => {
+    const { totalAPS } = calculateAPS(grades);
+    return totalAPS;
+  }, [grades]);
 
+  // Comprehensive matching: checks APS + subject prerequisites (standalone & groups)
   const dynamicMatches = useMemo(() => {
-    return matches.map((prog) => {
-      const isApsMet = currentAps >= prog.requiredAps;
-      let status = prog.status;
-      let score = prog.matchScore;
+    if (!programs || programs.length === 0) return [];
 
-      if (isApsMet) {
-        status = 'eligible';
-        score = Math.min(99, 85 + (currentAps - prog.requiredAps) * 2);
-      } else if (currentAps >= prog.requiredAps - 3) {
-        status = 'close';
-        score = Math.max(70, 85 - (prog.requiredAps - currentAps) * 3);
+    const evaluated = evaluateStudentEligibility(grades, programs);
+
+    return evaluated.map((result) => {
+      const requiredAps = result.minAPS || 0;
+      const apsDiff = currentAps - requiredAps;
+      let score = 50;
+
+      if (result.status === 'DIRECT_MATCH') {
+        score = Math.min(99, 85 + apsDiff * 2);
+      } else if (result.status === 'ECP_ELIGIBLE' || apsDiff >= -3) {
+        score = Math.max(65, 80 - Math.abs(apsDiff) * 3);
       } else {
-        status = 'not_eligible';
-        score = Math.max(45, 60 - (prog.requiredAps - currentAps) * 2);
+        score = Math.max(30, 60 - Math.abs(apsDiff) * 2);
       }
 
       return {
-        ...prog,
+        ...result,
         studentAps: currentAps,
-        status,
+        requiredAps: requiredAps,
         matchScore: Math.round(score),
+        isEligible: result.status === 'DIRECT_MATCH',
       };
     });
-  }, [grades, matches, currentAps]);
+  }, [grades, programs, currentAps]);
 
   const handleAuthSuccess = (authenticatedUser) => {
     setUser(authenticatedUser);
@@ -204,7 +219,7 @@ export default function App() {
         {currentScreen === 'welcome' && (
           <WelcomeScreen
             user={user}
-            onGetStarted={() => navigateWithAnimation('home')}
+            onGetStarted={() => navigateWithAnimation(user ? 'home' : 'auth')}
             onOpenAuth={() => navigateWithAnimation('auth')}
             onOpenTerms={() => navigateWithAnimation('settings')}
           />

@@ -34,13 +34,15 @@ export default function AuthScreen({ onAuthSuccess, onCancel }) {
 
   const handleAuth = async () => {
     setErrorMessage('');
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
 
-    if (!email.trim() || !password.trim()) {
+    if (!cleanEmail || !cleanPassword) {
       showError('Please enter both your email and password.');
       return;
     }
 
-    if (password.trim().length < 6) {
+    if (cleanPassword.length < 6) {
       showError('Password must be at least 6 characters long.');
       return;
     }
@@ -49,56 +51,69 @@ export default function AuthScreen({ onAuthSuccess, onCancel }) {
 
     try {
       if (isRegistering) {
-        if (!name.trim() || !school.trim()) {
+        const cleanName = name.trim();
+        const cleanSchool = school.trim();
+
+        if (!cleanName || !cleanSchool) {
           showError('Please enter your full name and high school.');
           setLoading(false);
           return;
         }
 
-        console.log('Attempting signup for:', email.trim());
-
-        // 1. Sign up the user in Supabase
+        // 1. Sign up user with metadata embedded in auth.users
         const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: email.trim(),
-          password: password.trim(),
+          email: cleanEmail,
+          password: cleanPassword,
+          options: {
+            data: {
+              full_name: cleanName,
+              school: cleanSchool,
+              grade: grade,
+            },
+          },
         });
 
         if (authError) throw authError;
 
         if (!authData?.user) {
-          throw new Error('No user returned from Supabase. Check your connection or keys.');
+          throw new Error('No user returned from Supabase. Please check your credentials.');
         }
 
-        console.log('User created:', authData.user.id);
-
-        // 2. Insert into profiles table
+        // 2. Insert/Upsert into public.profiles
         const { error: profileError } = await supabase.from('profiles').upsert([
           {
             id: authData.user.id,
-            name: name.trim(),
-            school: school.trim(),
+            name: cleanName,
+            school: cleanSchool,
             grade: grade,
+            updated_at: new Date().toISOString(),
           },
         ]);
 
         if (profileError) {
-          console.warn('Profile insert note:', profileError.message);
-          // Even if profile table insert has an RLS hiccup, let user in locally
+          console.warn('Profile table upsert notice:', profileError.message);
+        }
+
+        // If email confirmation is enabled and no session is returned, notify the user
+        if (!authData.session) {
+          Alert.alert(
+            'Account Created',
+            'Registration successful! If you have email confirmation enabled, check your inbox before logging in.'
+          );
         }
 
         onAuthSuccess({
           id: authData.user.id,
-          name: name.trim(),
-          email: email.trim(),
-          school: school.trim(),
+          name: cleanName,
+          email: cleanEmail,
+          school: cleanSchool,
           grade: grade,
         });
       } else {
-        console.log('Attempting sign-in for:', email.trim());
-
+        // Sign In Flow
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password: password.trim(),
+          email: cleanEmail,
+          password: cleanPassword,
         });
 
         if (authError) throw authError;
@@ -110,12 +125,15 @@ export default function AuthScreen({ onAuthSuccess, onCancel }) {
           .eq('id', authData.user.id)
           .single();
 
+        // Fallback to user metadata if profile row hasn't been populated
+        const metadata = authData.user.user_metadata || {};
+
         onAuthSuccess({
           id: authData.user.id,
-          name: profile?.name || email.split('@')[0],
-          email: email.trim(),
-          school: profile?.school || 'Secondary School',
-          grade: profile?.grade || 'Grade 12',
+          name: profile?.name || metadata.full_name || cleanEmail.split('@')[0],
+          email: cleanEmail,
+          school: profile?.school || metadata.school || 'Secondary School',
+          grade: profile?.grade || metadata.grade || 'Grade 12',
         });
       }
     } catch (err) {
