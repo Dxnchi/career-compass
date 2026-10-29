@@ -1,3 +1,5 @@
+import { supabase } from '../lib/supabase';
+
 export const INITIAL_USER_PROFILE = {
   name: 'Thabo Mokoena',
   grade: 'Grade 11 Student',
@@ -78,3 +80,33 @@ export const DEADLINES_DATA = [
   { id: 'dl-2', month: 'SEP', day: '30', title: 'Wits General Apps Close', subtitle: 'Ensure NBT results are linked.' },
   { id: 'dl-3', month: 'OCT', day: '31', title: 'NSFAS Funding Opens', subtitle: 'Prepare supporting documents.' },
 ];
+
+// Offline fallback list for the Explore screen (used when Supabase is unreachable or empty).
+export const UNIVERSITIES_DATA = [
+  { id: 'uni-uct', name: 'University of Cape Town', location: 'Cape Town, Western Cape', description: 'Public research university in Cape Town.' },
+  { id: 'uni-wits', name: 'University of the Witwatersrand', location: 'Johannesburg, Gauteng', description: 'Public research university in Johannesburg.' },
+  { id: 'uni-up', name: 'University of Pretoria', location: 'Pretoria, Gauteng', description: 'Public research university in Pretoria.' },
+  { id: 'uni-sun', name: 'Stellenbosch University', location: 'Stellenbosch, Western Cape', description: 'Public research university in Stellenbosch.' },
+  { id: 'uni-uj', name: 'University of Johannesburg', location: 'Johannesburg, Gauteng', description: 'Public university in Johannesburg.' },
+];
+
+// ---- Supabase loaders used by App.js on start-up ----
+// These never throw: on any problem (offline, missing table, unexpected columns) they return null,
+// and App.js keeps the bundled offline data above.
+// NOTE: table names 'programs' and 'universities' are assumptions. Change them if your tables differ.
+const looksLikeProgram = (r) => r && typeof r.title === 'string' && typeof r.universityName === 'string';
+const looksLikeUniversity = (r) => r && typeof r.name === 'string';
+
+async function loadTable(table, isValid) {
+  try {
+    const { data, error } = await supabase.from(table).select('*');
+    if (error || !Array.isArray(data)) return null;
+    const rows = data.filter(isValid);
+    return rows.length > 0 ? rows : null;
+  } catch {
+    return null;
+  }
+}
+
+export const fetchProgramsFromSupabase = () => loadTable('programs', looksLikeProgram);
+export const fetchUniversitiesFromSupabase = () => loadTable('universities', looksLikeUniversity);

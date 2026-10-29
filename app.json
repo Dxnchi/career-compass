@@ -19,6 +19,21 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Career Compass needs your camera to scan your report card.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Career Compass needs access to your photos so you can upload a report card."
+        }
+      ]
+    ]
   }
 }
