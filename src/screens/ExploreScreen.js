@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, TextInput, Image, TouchableOpacity, Linking, Alert } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TextInput, Image, TouchableOpacity, Linking, Alert, SafeAreaView } from 'react-native';
 import { Search, MapPin, ExternalLink, GraduationCap } from 'lucide-react-native';
+import { COLORS, SIZES, SHADOWS } from '../components/theme';
 
-// Fallback South African university database if Supabase table is empty
 const DEFAULT_SA_UNIVERSITIES = [
   {
     id: 'uj',
@@ -121,117 +121,163 @@ export default function ExploreScreen({
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Explore SA Universities</Text>
-      <Text style={styles.subtitle}>Verified faculty requirements, portals, and intake deadlines.</Text>
+    <SafeAreaView style={styles.container}>
+      
+      {/* Fun Background Shapes */}
+      <View style={[styles.shape, styles.shapePurple]} />
+      <View style={[styles.shape, styles.shapeYellow]} />
 
-      {/* Search Input */}
-      <View style={styles.searchBox}>
-        <Search color="#71717a" size={18} />
-        <TextInput
-          placeholder="Search by institution name, code, or city..."
-          placeholderTextColor="#71717a"
-          style={styles.searchInput}
-          value={query}
-          onChangeText={setQuery}
-        />
-      </View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Explore</Text>
+          <Text style={styles.subtitle}>Find your perfect university match.</Text>
+        </View>
 
-      {/* Province Chips */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar}>
-        {provinces.map((prov) => (
-          <TouchableOpacity
-            key={prov}
-            style={[styles.filterChip, selectedProvince === prov && styles.filterChipActive]}
-            onPress={() => setSelectedProvince(prov)}
-          >
-            <Text style={[styles.filterLabel, selectedProvince === prov && styles.filterLabelActive]}>
-              {prov}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+        {/* Search Box */}
+        <View style={styles.searchBox}>
+          <Search color={COLORS.textGray} size={20} />
+          <TextInput
+            placeholder="Search by name, code, or city..."
+            placeholderTextColor={COLORS.textGray}
+            style={styles.searchInput}
+            value={query}
+            onChangeText={setQuery}
+          />
+        </View>
 
-      {/* Universities List */}
-      <View style={styles.list}>
-        {filtered.length > 0 ? (
-          filtered.map((uni, idx) => (
+        {/* Province Chips */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterBar}>
+          {provinces.map((prov) => (
             <TouchableOpacity
-              key={uni.id || uni.code || `uni-${idx}`}
-              style={styles.card}
-              activeOpacity={0.85}
-              onPress={() => handleOpenUniversity(uni)}
+              key={prov}
+              style={[styles.filterChip, selectedProvince === prov && styles.filterChipActive]}
+              onPress={() => setSelectedProvince(prov)}
             >
-              {uni?.image ? (
-                <Image source={{ uri: uni.image }} style={styles.cardImg} />
-              ) : (
-                <View style={[styles.cardImg, { backgroundColor: '#1e293b', justifyContent: 'center', alignItems: 'center' }]}>
-                  <GraduationCap color="#60a5fa" size={32} />
-                </View>
-              )}
-
-              <View style={styles.cardBody}>
-                <View style={styles.rankRow}>
-                  <Text style={styles.rankBadge}>
-                    {uni.code ? uni.code : `Rank #${uni.ranking || '--'}`}
-                  </Text>
-                  <Text style={styles.deadlineBadge}>
-                    Apps Close: {uni.closeDate || 'Check portal'}
-                  </Text>
-                </View>
-
-                <Text style={styles.uniName}>{uni.name}</Text>
-
-                <View style={styles.locRow}>
-                  <MapPin color="#71717a" size={13} />
-                  <Text style={styles.locText}>{uni.location || 'South Africa'}</Text>
-                </View>
-
-                <Text style={styles.desc} numberOfLines={2}>
-                  {uni.description || 'Undergraduate faculty admission requirements and prospectus.'}
-                </Text>
-
-                <View style={styles.portalRow}>
-                  <Text style={styles.portalText}>Official Admissions Portal</Text>
-                  <ExternalLink color="#3b82f6" size={14} />
-                </View>
-              </View>
+              <Text style={[styles.filterLabel, selectedProvince === prov && styles.filterLabelActive]}>
+                {prov}
+              </Text>
             </TouchableOpacity>
-          ))
-        ) : (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyText}>No institutions match your search criteria.</Text>
-          </View>
-        )}
-      </View>
-    </ScrollView>
+          ))}
+        </ScrollView>
+
+        {/* Universities List */}
+        <View style={styles.list}>
+          {filtered.length > 0 ? (
+            filtered.map((uni, idx) => (
+              <TouchableOpacity
+                key={uni.id || uni.code || `uni-${idx}`}
+                style={styles.card}
+                activeOpacity={0.85}
+                onPress={() => handleOpenUniversity(uni)}
+              >
+                {/* Image Section */}
+                {uni?.image ? (
+                  <Image source={{ uri: uni.image }} style={styles.cardImg} />
+                ) : (
+                  <View style={[styles.cardImg, { backgroundColor: '#E8E0FF', justifyContent: 'center', alignItems: 'center' }]}>
+                    <GraduationCap color={COLORS.primary} size={40} />
+                  </View>
+                )}
+
+                {/* Content Section */}
+                <View style={styles.cardBody}>
+                  
+                  <View style={styles.badgeRow}>
+                    <View style={styles.codeBadge}>
+                      <Text style={styles.codeText}>{uni.code || `Rank #${uni.ranking}`}</Text>
+                    </View>
+                    <View style={styles.deadlineBadge}>
+                      <Text style={styles.deadlineText}>Closes: {uni.closeDate || 'Check portal'}</Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.uniName}>{uni.name}</Text>
+
+                  <View style={styles.locRow}>
+                    <MapPin color={COLORS.textGray} size={14} />
+                    <Text style={styles.locText}>{uni.location || 'South Africa'}</Text>
+                  </View>
+
+                  <Text style={styles.desc} numberOfLines={2}>
+                    {uni.description || 'Undergraduate faculty admission requirements and prospectus.'}
+                  </Text>
+
+                  <View style={styles.portalRow}>
+                    <Text style={styles.portalText}>Apply on Portal</Text>
+                    <ExternalLink color={COLORS.primary} size={16} />
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyText}>No institutions match your search.</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#0a0a0a', flexGrow: 1 },
-  title: { color: '#f4f4f5', fontSize: 22, fontWeight: 'bold' },
-  subtitle: { color: '#a1a1aa', fontSize: 13, marginTop: 4, marginBottom: 14 },
-  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#141416', paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: '#27272a', marginBottom: 12 },
-  searchInput: { color: '#ffffff', flex: 1, paddingVertical: 10, fontSize: 13 },
-  filterBar: { flexDirection: 'row', marginBottom: 16 },
-  filterChip: { backgroundColor: '#141416', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8, borderWidth: 1, borderColor: '#27272a' },
-  filterChipActive: { backgroundColor: '#2563eb', borderColor: '#3b82f6' },
-  filterLabel: { color: '#71717a', fontSize: 12, fontWeight: '600' },
-  filterLabelActive: { color: '#ffffff' },
-  list: { gap: 14, paddingBottom: 24 },
-  card: { backgroundColor: '#141416', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#27272a' },
-  cardImg: { width: '100%', height: 130 },
-  cardBody: { padding: 14 },
-  rankRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  rankBadge: { color: '#60a5fa', fontSize: 11, fontWeight: 'bold', backgroundColor: '#172554', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  deadlineBadge: { color: '#f87171', fontSize: 11, fontWeight: '600' },
-  uniName: { color: '#f4f4f5', fontSize: 16, fontWeight: 'bold', marginTop: 4 },
-  locRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginVertical: 4 },
-  locText: { color: '#71717a', fontSize: 12 },
-  desc: { color: '#a1a1aa', fontSize: 12, lineHeight: 18, marginTop: 4 },
-  portalRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#27272a' },
-  portalText: { color: '#3b82f6', fontSize: 12, fontWeight: '600' },
-  emptyBox: { padding: 32, alignItems: 'center' },
-  emptyText: { color: '#71717a', fontSize: 13 },
+  container: { flex: 1, backgroundColor: COLORS.background, overflow: 'hidden' },
+
+  // Fun Background Shapes
+  shape: { position: 'absolute', borderRadius: 1000, opacity: 0.5 },
+  shapePurple: { width: 300, height: 300, backgroundColor: '#E8E0FF', top: -100, left: -100 },
+  shapeYellow: { width: 150, height: 150, backgroundColor: '#FFF3E0', top: 200, right: -50 },
+
+  header: { paddingHorizontal: SIZES.padding, paddingTop: 20, marginBottom: 20 },
+  title: { fontSize: SIZES.h1, fontWeight: '800', color: COLORS.textDark },
+  subtitle: { fontSize: 14, color: COLORS.textGray, fontWeight: '500', marginTop: 4 },
+
+  // Search
+  searchBox: { 
+    flexDirection: 'row', alignItems: 'center', gap: 10, 
+    backgroundColor: COLORS.white, paddingHorizontal: 16, height: 56, 
+    marginHorizontal: SIZES.padding, borderRadius: SIZES.radius, ...SHADOWS.light 
+  },
+  searchInput: { color: COLORS.textDark, flex: 1, fontSize: 15 },
+
+  // Filter Chips
+  filterBar: { paddingHorizontal: SIZES.padding, paddingVertical: 20, gap: 10 },
+  filterChip: { 
+    backgroundColor: COLORS.white, paddingHorizontal: 18, paddingVertical: 10, 
+    borderRadius: 20, ...SHADOWS.light 
+  },
+  filterChipActive: { backgroundColor: COLORS.primary },
+  filterLabel: { color: COLORS.textGray, fontSize: 13, fontWeight: '600' },
+  filterLabelActive: { color: COLORS.white },
+
+  // University Cards
+  list: { paddingHorizontal: SIZES.padding, gap: 20 },
+  card: { 
+    backgroundColor: COLORS.white, borderRadius: 24, overflow: 'hidden', 
+    ...SHADOWS.light 
+  },
+  cardImg: { width: '100%', height: 140 },
+  cardBody: { padding: 16 },
+  
+  badgeRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  codeBadge: { backgroundColor: '#E8E0FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  codeText: { color: COLORS.primary, fontSize: 11, fontWeight: '800' },
+  deadlineBadge: { backgroundColor: '#FFE8E8', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  deadlineText: { color: '#FF3B30', fontSize: 11, fontWeight: '800' },
+
+  uniName: { color: COLORS.textDark, fontSize: 18, fontWeight: '800', marginBottom: 6 },
+  locRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  locText: { color: COLORS.textGray, fontSize: 13, fontWeight: '500' },
+  desc: { color: COLORS.textGray, fontSize: 13, lineHeight: 20 },
+
+  portalRow: { 
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', 
+    marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#F0F0F0' 
+  },
+  portalText: { color: COLORS.primary, fontSize: 14, fontWeight: '700' },
+
+  emptyBox: { padding: 40, alignItems: 'center' },
+  emptyText: { color: COLORS.textGray, fontSize: 14, fontWeight: '500' },
 });

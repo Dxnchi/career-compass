@@ -69,7 +69,7 @@ export default function NotificationsScreen({
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         
-        <Text style={styles.subtitle}>Don't miss these important application and funding dates! 📅</Text>
+        <Text style={styles.subtitle}>Don't miss these important application and funding dates!</Text>
 
         {safeDeadlines.length > 0 ? (
           safeDeadlines.map((deadline, index) => (
