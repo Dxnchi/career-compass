@@ -1,7 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { ArrowLeft, Trash2, Plus, CheckCircle2 } from 'lucide-react-native';
-import { getLevelFromPercentage } from '../data/dataStore';
+import { calculateAPS } from '../utils/apsCalculator';
+
+// Fallback percentage-to-level mapping if not imported
+function getLevelFromPercentage(percentage) {
+  const p = Number(percentage);
+  if (p >= 80) return 7;
+  if (p >= 70) return 6;
+  if (p >= 60) return 5;
+  if (p >= 50) return 4;
+  if (p >= 40) return 3;
+  if (p >= 30) return 2;
+  return 1;
+}
 
 export default function ConfirmGradesScreen({
   initialGrades = [],
@@ -15,19 +27,38 @@ export default function ConfirmGradesScreen({
 
   const submitAction = onConfirm || onConfirmAndMatch || (() => {});
 
-  const handleUpdate = (id, percentage) => {
-    const val = Number(percentage);
+  // 1. Smooth text input handling (allows clearing the box without crashing)
+  const handleUpdate = (id, text) => {
+    // Allow empty string so user can delete and type
+    if (text === '') {
+      setGrades((prev) =>
+        prev.map((g) => (g.id === id ? { ...g, percentage: '', level: 0 } : g))
+      );
+      return;
+    }
+
+    const val = Number(text);
     if (isNaN(val) || val < 0 || val > 100) return;
+
     setGrades((prev) =>
       prev.map((g) =>
-        g.id === id ? { ...g, percentage: val, level: getLevelFromPercentage(val) } : g
+        g.id === id
+          ? {
+              ...g,
+              percentage: val,
+              level: getLevelFromPercentage(val),
+            }
+          : g
       )
     );
   };
 
   const handleDelete = (id) => {
     if (grades.length <= 4) {
-      Alert.alert('APS Minimum', 'You need at least 6 NSC subjects to generate an accurate university APS score.');
+      Alert.alert(
+        'NSC Minimum',
+        'You need at least 6 subjects (excluding Life Orientation) for a complete university admission evaluation.'
+      );
       return;
     }
     setGrades((prev) => prev.filter((g) => g.id !== id));
@@ -44,12 +75,14 @@ export default function ConfirmGradesScreen({
       return;
     }
 
+    const isLO = newSubject.trim().toLowerCase().includes('life orientation');
+
     setGrades((prev) => [
       ...prev,
       {
         id: `custom-${Date.now()}`,
         name: newSubject.trim(),
-        category: 'Elective',
+        category: isLO ? 'Core Subject' : 'Elective',
         level: getLevelFromPercentage(score),
         percentage: score,
       },
@@ -58,9 +91,26 @@ export default function ConfirmGradesScreen({
     setNewPercentage('');
   };
 
-  const totalAps = Array.isArray(grades)
-    ? grades.reduce((s, g) => s + (Number(g?.level) || 0), 0)
-    : 0;
+  // 2. Accurate APS score calculated using the same logic as the matching engine
+  const totalAps = useMemo(() => {
+    const validGrades = grades.map((g) => ({
+      subject: g.name,
+      percentage: Number(g.percentage) || 0,
+      level: g.level,
+    }));
+    const { totalAPS } = calculateAPS(validGrades);
+    return totalAPS;
+  }, [grades]);
+
+  const handleConfirmAndProceed = () => {
+    // Sanitize any empty percentage fields before passing to matching engine
+    const sanitizedGrades = grades.map((g) => ({
+      ...g,
+      percentage: Number(g.percentage) || 0,
+      level: getLevelFromPercentage(Number(g.percentage) || 0),
+    }));
+    submitAction(sanitizedGrades);
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -72,32 +122,43 @@ export default function ConfirmGradesScreen({
       </View>
 
       <Text style={styles.subPrompt}>
-        Verify your NSC subject percentages. Levels and total APS points are calculated dynamically.
+        Verify your NSC subject percentages. Levels and official university APS points (excluding Life Orientation) update dynamically.
       </Text>
 
       <View style={styles.list}>
-        {grades.map((item) => (
-          <View key={item.id} style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.subjectName}>{item.name}</Text>
-              <Text style={styles.subjectCategory}>{item.category}</Text>
+        {grades.map((item) => {
+          const isLO = item.name?.toLowerCase().includes('life orientation');
+
+          return (
+            <View key={item.id} style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.subjectName}>{item.name}</Text>
+                <Text style={styles.subjectCategory}>
+                  {isLO ? 'Life Orientation (Excluded from APS)' : item.category || 'Elective'}
+                </Text>
+              </View>
+
+              <View style={[styles.levelPill, isLO && styles.loLevelPill]}>
+                <Text style={[styles.levelText, isLO && styles.loLevelText]}>
+                  Lvl {item.level || 0}
+                </Text>
+              </View>
+
+              <TextInput
+                style={styles.percentInput}
+                keyboardType="numeric"
+                value={String(item.percentage)}
+                onChangeText={(txt) => handleUpdate(item.id, txt)}
+                maxLength={3}
+              />
+              <Text style={styles.percentSymbol}>%</Text>
+
+              <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.delBtn}>
+                <Trash2 color="#ef4444" size={16} />
+              </TouchableOpacity>
             </View>
-            <View style={styles.levelPill}>
-              <Text style={styles.levelText}>Lvl {item.level}</Text>
-            </View>
-            <TextInput
-              style={styles.percentInput}
-              keyboardType="numeric"
-              value={String(item.percentage)}
-              onChangeText={(txt) => handleUpdate(item.id, txt)}
-              maxLength={3}
-            />
-            <Text style={styles.percentSymbol}>%</Text>
-            <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.delBtn}>
-              <Trash2 color="#ef4444" size={16} />
-            </TouchableOpacity>
-          </View>
-        ))}
+          );
+        })}
       </View>
 
       <View style={styles.addCard}>
@@ -126,13 +187,13 @@ export default function ConfirmGradesScreen({
       </View>
 
       <View style={styles.apsSummary}>
-        <Text style={styles.apsLabel}>Calculated APS Points:</Text>
+        <Text style={styles.apsLabel}>Official University APS:</Text>
         <Text style={styles.apsValue}>{totalAps} Points</Text>
       </View>
 
       <TouchableOpacity
         style={styles.confirmBtn}
-        onPress={() => submitAction(grades)}
+        onPress={handleConfirmAndProceed}
       >
         <Text style={styles.confirmBtnText}>Save & View Matching Degrees</Text>
         <CheckCircle2 color="#ffffff" size={18} />
@@ -152,6 +213,8 @@ const styles = StyleSheet.create({
   subjectCategory: { color: '#71717a', fontSize: 11 },
   levelPill: { backgroundColor: '#1e3a8a', paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6 },
   levelText: { color: '#bfdbfe', fontSize: 11, fontWeight: 'bold' },
+  loLevelPill: { backgroundColor: '#27272a' },
+  loLevelText: { color: '#a1a1aa' },
   percentInput: { backgroundColor: '#27272a', color: '#ffffff', width: 44, padding: 6, borderRadius: 6, textAlign: 'center', fontWeight: 'bold' },
   percentSymbol: { color: '#71717a', fontSize: 12 },
   delBtn: { padding: 4 },
