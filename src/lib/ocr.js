@@ -5,9 +5,8 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { parseReportCardText } from './grades';
 
 const OCR_ENDPOINT = 'https://api.ocr.space/parse/image';
-// Free key: https://ocr.space/ocrapi/freekey  -> put it in .env as EXPO_PUBLIC_OCR_SPACE_KEY
-// 'helloworld' is OCR.space's shared demo key (heavily rate-limited, fine for a first test).
-const OCR_API_KEY = process.env.EXPO_PUBLIC_OCR_SPACE_KEY || 'helloworld';
+// Uses your .env variable first, falling back directly to your provided key
+const OCR_API_KEY = process.env.EXPO_PUBLIC_OCR_SPACE_KEY || 'K8437716089341988957';
 const MAX_WIDTH = 1600; // keeps the upload small (free tier has a ~1 MB file limit)
 
 export class OcrError extends Error {
@@ -27,6 +26,8 @@ export async function prepareImage(uri, width) {
 }
 
 export async function recognizeText(base64Jpeg, { timeoutMs = 30000 } = {}) {
+  console.log('Using OCR API Key:', OCR_API_KEY ? 'Key is present (Length: ' + OCR_API_KEY.length + ')' : 'Key is missing!');
+
   const form = new FormData();
   form.append('base64Image', `data:image/jpeg;base64,${base64Jpeg}`);
   form.append('language', 'eng');
@@ -38,13 +39,16 @@ export async function recognizeText(base64Jpeg, { timeoutMs = 30000 } = {}) {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let response;
   try {
+    console.log('Sending request to OCR.space...');
     response = await fetch(OCR_ENDPOINT, {
       method: 'POST',
       headers: { apikey: OCR_API_KEY },
       body: form,
       signal: controller.signal,
     });
+    console.log('Received response status:', response.status);
   } catch (e) {
+    console.log('Fetch error caught:', e);
     if (e?.name === 'AbortError') throw new OcrError('timeout', 'The scan took too long.');
     throw new OcrError('network', 'No internet connection.');
   } finally {
