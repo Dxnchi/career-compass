@@ -235,7 +235,7 @@ export default function ConfirmGradesScreen({
       </Modal>
 
       <View style={styles.apsSummary}>
-        <Text style={styles.apsLabel}>Calculated APS Points:</Text>
+        <Text style={styles.apsLabel}>Official University APS:</Text>
         <Text style={styles.apsValue}>{totalAps} Points</Text>
       </View>
 
@@ -271,6 +271,8 @@ const styles = StyleSheet.create({
   subjectCategory: { color: '#71717a', fontSize: 11 },
   levelPill: { backgroundColor: '#1e3a8a', paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6 },
   levelText: { color: '#bfdbfe', fontSize: 11, fontWeight: 'bold' },
+  loLevelPill: { backgroundColor: '#27272a' },
+  loLevelText: { color: '#a1a1aa' },
   percentInput: { backgroundColor: '#27272a', color: '#ffffff', width: 44, padding: 6, borderRadius: 6, textAlign: 'center', fontWeight: 'bold' },
   percentInputFlagged: { borderWidth: 1, borderColor: '#f59e0b' },
   percentSymbol: { color: '#71717a', fontSize: 12 },
