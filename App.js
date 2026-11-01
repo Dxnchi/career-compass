@@ -1,7 +1,7 @@
 // App.js
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { StyleSheet, StatusBar, Animated, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import {
   INITIAL_USER_PROFILE,
@@ -268,139 +268,141 @@ export default function App() {
   const showAdvisorBot = currentScreen !== 'welcome' && currentScreen !== 'auth';
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0a0a0a" />
-      <Animated.View
-        style={[
-          styles.body,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: translateYAnim }],
-          },
-        ]}
-      >
-        {currentScreen === 'welcome' && (
-          <WelcomeScreen
-            user={user}
-            onGetStarted={() => navigateWithAnimation(user ? 'home' : 'auth')}
-            onOpenAuth={() => navigateWithAnimation('auth')}
-            onOpenTerms={() => navigateWithAnimation('settings')}
-          />
-        )}
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#0a0a0a" />
+        <Animated.View
+          style={[
+            styles.body,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: translateYAnim }],
+            },
+          ]}
+        >
+          {currentScreen === 'welcome' && (
+            <WelcomeScreen
+              user={user}
+              onGetStarted={() => navigateWithAnimation(user ? 'home' : 'auth')}
+              onOpenAuth={() => navigateWithAnimation('auth')}
+              onOpenTerms={() => navigateWithAnimation('settings')}
+            />
+          )}
 
-        {currentScreen === 'auth' && (
-          <AuthScreen
-            onAuthSuccess={handleAuthSuccess}
-            onCancel={() => navigateWithAnimation('welcome')}
-          />
-        )}
+          {currentScreen === 'auth' && (
+            <AuthScreen
+              onAuthSuccess={handleAuthSuccess}
+              onCancel={() => navigateWithAnimation('welcome')}
+            />
+          )}
 
-        {currentScreen === 'home' && (
-          <HomeScreen
-            user={user || { name: 'Student' }}
-            matches={dynamicMatches}
-            deadlines={DEADLINES_DATA}
-            currentAps={currentAps}
+          {currentScreen === 'home' && (
+            <HomeScreen
+              user={user || { name: 'Student' }}
+              matches={dynamicMatches}
+              deadlines={DEADLINES_DATA}
+              currentAps={currentAps}
+              onNavigate={navigateWithAnimation}
+              onSelectProgram={handleSelectProgram}
+            />
+          )}
+
+          {currentScreen === 'scan' && (
+            <ScanScreen
+              onCancel={() => navigateWithAnimation('home')}
+              onClose={() => navigateWithAnimation('home')}
+              onScanComplete={handleScanDone}
+            />
+          )}
+
+          {currentScreen === 'confirm_grades' && (
+            <ConfirmGradesScreen
+              initialGrades={pendingGrades}
+              scanMeta={scanMeta}
+              onBack={() => navigateWithAnimation('scan')}
+              onConfirm={handleGradesConfirmed}
+              onConfirmAndMatch={handleGradesConfirmed}
+              onRescan={() => navigateWithAnimation('scan')}
+            />
+          )}
+
+          {currentScreen === 'matches' && (
+            <MatchesScreen
+              matches={dynamicMatches}
+              onBack={() => navigateWithAnimation('home')}
+              onSelectProgram={handleSelectProgram}
+            />
+          )}
+
+          {currentScreen === 'program_detail' && (
+            <ProgramDetailScreen
+              program={{ ...selectedProgram, userGrades: grades }}
+              onBack={() => navigateWithAnimation('matches')}
+              onStartApplication={() => setAppModalVisible(true)}
+            />
+          )}
+
+          {currentScreen === 'explore' && (
+            <ExploreScreen
+              universities={universities}
+              onNavigateHome={() => navigateWithAnimation('home')}
+              onSelectProgram={handleSelectProgram}
+            />
+          )}
+
+          {currentScreen === 'notifications' && (
+            <NotificationsScreen
+              deadlines={DEADLINES_DATA}
+              onBack={() => navigateWithAnimation('home')}
+              onNavigate={navigateWithAnimation}
+              onSelectProgram={handleSelectProgram}
+            />
+          )}
+
+          {currentScreen === 'profile' && (
+            <ProfileScreen
+              user={user || { name: 'Student', school: 'Secondary School', grade: 'Grade 12' }}
+              aps={currentAps}
+              currentAps={currentAps}
+              onNavigateSettings={() => navigateWithAnimation('settings')}
+              onNavigate={navigateWithAnimation}
+            />
+          )}
+
+          {currentScreen === 'settings' && (
+            <SettingsScreen
+              user={user || { name: 'Student', school: '' }}
+              onBack={() => navigateWithAnimation('profile')}
+              onSaveUser={(updated) => setUser(updated)}
+              onUpdateUser={(updated) => setUser(updated)}
+              onLogout={handleLogout}
+              onNavigate={navigateWithAnimation}
+            />
+          )}
+
+          {currentScreen === 'admin_users' && (
+            <AdminUsersScreen onBack={() => navigateWithAnimation('settings')} />
+          )}
+        </Animated.View>
+
+        {showBottomNav && (
+          <Navigation
+            currentScreen={currentScreen}
             onNavigate={navigateWithAnimation}
-            onSelectProgram={handleSelectProgram}
           />
         )}
 
-        {currentScreen === 'scan' && (
-          <ScanScreen
-            onCancel={() => navigateWithAnimation('home')}
-            onClose={() => navigateWithAnimation('home')}
-            onScanComplete={handleScanDone}
-          />
+        {showAdvisorBot && (
+          <FloatingAdvisorBot currentScreen={currentScreen} />
         )}
 
-        {currentScreen === 'confirm_grades' && (
-          <ConfirmGradesScreen
-            initialGrades={pendingGrades}
-            scanMeta={scanMeta}
-            onBack={() => navigateWithAnimation('scan')}
-            onConfirm={handleGradesConfirmed}
-            onConfirmAndMatch={handleGradesConfirmed}
-            onRescan={() => navigateWithAnimation('scan')}
-          />
-        )}
-
-        {currentScreen === 'matches' && (
-          <MatchesScreen
-            matches={dynamicMatches}
-            onBack={() => navigateWithAnimation('home')}
-            onSelectProgram={handleSelectProgram}
-          />
-        )}
-
-        {currentScreen === 'program_detail' && (
-          <ProgramDetailScreen
-            program={{ ...selectedProgram, userGrades: grades }}
-            onBack={() => navigateWithAnimation('matches')}
-            onStartApplication={() => setAppModalVisible(true)}
-          />
-        )}
-
-        {currentScreen === 'explore' && (
-          <ExploreScreen
-            universities={universities}
-            onNavigateHome={() => navigateWithAnimation('home')}
-            onSelectProgram={handleSelectProgram}
-          />
-        )}
-
-        {currentScreen === 'notifications' && (
-          <NotificationsScreen
-            deadlines={DEADLINES_DATA}
-            onBack={() => navigateWithAnimation('home')}
-            onNavigate={navigateWithAnimation}
-            onSelectProgram={handleSelectProgram}
-          />
-        )}
-
-        {currentScreen === 'profile' && (
-          <ProfileScreen
-            user={user || { name: 'Student', school: 'Secondary School', grade: 'Grade 12' }}
-            aps={currentAps}
-            currentAps={currentAps}
-            onNavigateSettings={() => navigateWithAnimation('settings')}
-            onNavigate={navigateWithAnimation}
-          />
-        )}
-
-        {currentScreen === 'settings' && (
-          <SettingsScreen
-            user={user || { name: 'Student', school: '' }}
-            onBack={() => navigateWithAnimation('profile')}
-            onSaveUser={(updated) => setUser(updated)}
-            onUpdateUser={(updated) => setUser(updated)}
-            onLogout={handleLogout}
-            onNavigate={navigateWithAnimation}
-          />
-        )}
-
-        {currentScreen === 'admin_users' && (
-          <AdminUsersScreen onBack={() => navigateWithAnimation('settings')} />
-        )}
-      </Animated.View>
-
-      {showBottomNav && (
-        <Navigation
-          currentScreen={currentScreen}
-          onNavigate={navigateWithAnimation}
+        <ApplicationModal
+          visible={appModalVisible}
+          program={selectedProgram}
+          onClose={() => setAppModalVisible(false)}
         />
-      )}
-
-      {showAdvisorBot && (
-        <FloatingAdvisorBot currentScreen={currentScreen} />
-      )}
-
-      <ApplicationModal
-        visible={appModalVisible}
-        program={selectedProgram}
-        onClose={() => setAppModalVisible(false)}
-      />
-    </SafeAreaView>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
