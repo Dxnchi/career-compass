@@ -33,7 +33,8 @@
         {
           "photosPermission": "Career Compass needs access to your photos so you can upload a report card."
         }
-      ]
+      ],
+      "expo-status-bar"
     ]
   }
 }

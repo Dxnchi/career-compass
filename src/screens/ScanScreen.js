@@ -1,10 +1,12 @@
 import React, { useRef, useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Image, Linking, SafeAreaView } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Image, Linking, Platform, Dimensions } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, X, Image as ImageIcon, PenLine } from 'lucide-react-native';
 import { scanReportCard, describeScanError } from '../lib/ocr';
 import { manualEntryTemplate } from '../lib/grades';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function ScanScreen({ onCancel, onClose, onScanComplete }) {
   const handleExit = onCancel || onClose || (() => {});
@@ -41,7 +43,7 @@ export default function ScanScreen({ onCancel, onClose, onScanComplete }) {
   };
 
   const takePhoto = async () => {
-    if (!cameraRef.current || !cameraReady || busy) return;
+    if (!cameraRef.current || busy) return;
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
       await processImage(photo.uri, photo.width);
@@ -69,66 +71,67 @@ export default function ScanScreen({ onCancel, onClose, onScanComplete }) {
     setPreviewUri(null);
   };
 
-  const renderContent = () => {
-    if (previewUri) {
-      return <Image source={{ uri: previewUri }} style={styles.previewImage} resizeMode="cover" />;
-    }
-    if (!permission) {
-      return <ActivityIndicator size="large" color="#3b82f6" style={styles.centerBox} />;
-    }
-    if (!permission.granted) {
-      return (
-        <View style={styles.permissionWrap}>
-          <Camera color="#60a5fa" size={36} />
-          <Text style={styles.permissionTitle}>Camera access needed</Text>
-          <Text style={styles.permissionText}>
-            Career Compass uses your camera to photograph your report card. You can also upload a photo instead.
-          </Text>
-          <TouchableOpacity
-            style={styles.primaryBtn}
-            onPress={() => (permission.canAskAgain ? requestPermission() : Linking.openSettings())}
-          >
-            <Text style={styles.primaryBtnText}>{permission.canAskAgain ? 'Allow camera' : 'Open settings'}</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
+  // If permission is not granted or loading
+  if (!permission) {
     return (
-      <CameraView
-        ref={cameraRef}
-        style={styles.camera}
-        facing="back"
-        enableTorch={torch}
-        autofocus="on"
-        onCameraReady={() => setCameraReady(true)}
-        onMountError={() => setError('The camera could not start. Try uploading a photo instead.')}
-      />
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#3b82f6" />
+      </View>
     );
-  };
+  }
 
-  const canCapture = permission?.granted && cameraReady && !busy && !previewUri;
+  if (!permission.granted) {
+    return (
+      <View style={styles.permissionWrap}>
+        <Camera color="#60a5fa" size={36} />
+        <Text style={styles.permissionTitle}>Camera access needed</Text>
+        <Text style={styles.permissionText}>
+          Career Compass uses your camera to photograph your report card. You can also upload a photo instead.
+        </Text>
+        <TouchableOpacity
+          style={styles.primaryBtn}
+          onPress={() => (permission.canAskAgain ? requestPermission() : Linking.openSettings())}
+        >
+          <Text style={styles.primaryBtnText}>{permission.canAskAgain ? 'Allow camera' : 'Open settings'}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const canCapture = !busy && !previewUri;
 
   return (
     <View style={styles.container}>
-      {/* Background Camera / Preview layer */}
-      <View style={styles.viewfinderBackground}>
-        {renderContent()}
-      </View>
+      {/* 1. Full-screen background layer with explicit dimensions */}
+      {previewUri ? (
+        <Image source={{ uri: previewUri }} style={styles.explicitFill} resizeMode="cover" />
+      ) : (
+        <CameraView
+          key="camera-view-active"
+          ref={cameraRef}
+          style={styles.explicitFill}
+          facing="back"
+          enableTorch={torch}
+          autofocus="on"
+          onCameraReady={() => setCameraReady(true)}
+          onMountError={() => setError('The camera could not start. Try uploading a photo instead.')}
+        />
+      )}
 
-      {/* Overlay UI Layer */}
-      <SafeAreaView style={styles.overlayLayer}>
+      {/* 2. UI Overlay Layer */}
+      <View style={styles.overlayLayer}>
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.iconBtn} onPress={handleExit} disabled={busy}>
             <X color="#f4f4f5" size={20} />
           </TouchableOpacity>
           <Text style={styles.topTitle}>Scan Report Card</Text>
-          <TouchableOpacity style={styles.offlinePill} onPress={() => setTorch((t) => !t)} disabled={!permission?.granted}>
+          <TouchableOpacity style={styles.offlinePill} onPress={() => setTorch((t) => !t)}>
             <Text style={styles.offlineText}>{torch ? 'Light on' : 'Light off'}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.centerTargetContainer}>
-          {!previewUri && permission?.granted && (
+          {!previewUri && (
             <View style={styles.targetFrame}>
               <View pointerEvents="none" style={[styles.corner, styles.tl]} />
               <View pointerEvents="none" style={[styles.corner, styles.tr]} />
@@ -175,33 +178,39 @@ export default function ScanScreen({ onCancel, onClose, onScanComplete }) {
             </TouchableOpacity>
           </View>
         </View>
-      </SafeAreaView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#050505' },
-  viewfinderBackground: { ...StyleSheet.absoluteFillObject, backgroundColor: '#000' },
-  camera: { flex: 1, width: '100%', height: '100%' },
-  previewImage: { flex: 1, width: '100%', height: '100%' },
-  overlayLayer: { flex: 1, justifyContent: 'space-between', padding: 20 },
-  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 },
+  container: { flex: 1, backgroundColor: '#000' },
+  explicitFill: { position: 'absolute', top: 0, left: 0, width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#050505' },
+  overlayLayer: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingBottom: 20,
+    zIndex: 10,
+  },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10, marginBottom: 10 },
   iconBtn: { backgroundColor: 'rgba(24, 24, 27, 0.8)', padding: 8, borderRadius: 20 },
   topTitle: { color: '#f4f4f5', fontSize: 16, fontWeight: 'bold' },
-  offlinePill: { backgroundColor: 'rgba(30, 41, 59, 0.8)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  offlinePill: { backgroundColor: 'rgba(30, 41, 59, 0.8)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
   offlineText: { color: '#60a5fa', fontSize: 11, fontWeight: '600' },
   centerTargetContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 14 },
-  targetFrame: { width: 300, height: 400, borderWidth: 1, borderColor: 'rgba(59, 130, 246, 0.6)', borderRadius: 16, backgroundColor: 'transparent' },
-  busyOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', gap: 12, borderRadius: 16 },
-  corner: { position: 'absolute', width: 24, height: 24, borderColor: '#3b82f6' },
+  targetFrame: { width: 300, height: 400, borderWidth: 1, borderColor: 'rgba(59, 130, 246, 0.6)', borderRadius: 16, backgroundColor: 'transparent', position: 'relative' },
+  busyOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', gap: 12, zIndex: 20, borderRadius: 16 },
+  corner: { position: 'absolute', width: 24, height: 24, borderColor: '#3b82f6', zIndex: 10 },
   tl: { top: 0, left: 0, borderTopWidth: 4, borderLeftWidth: 4, borderTopLeftRadius: 12 },
   tr: { top: 0, right: 0, borderTopWidth: 4, borderRightWidth: 4, borderTopRightRadius: 12 },
   bl: { bottom: 0, left: 0, borderBottomWidth: 4, borderLeftWidth: 4, borderBottomLeftRadius: 12 },
   br: { bottom: 0, right: 0, borderBottomWidth: 4, borderRightWidth: 4, borderBottomRightRadius: 12 },
   processingText: { color: '#93c5fd', fontWeight: '600', fontSize: 13 },
   hint: { color: '#d4d4d8', fontSize: 12, textAlign: 'center', paddingHorizontal: 24, backgroundColor: 'rgba(0,0,0,0.5)', paddingVertical: 6, borderRadius: 8, overflow: 'hidden' },
-  errorBox: { backgroundColor: '#2a1215', borderColor: '#7f1d1d', borderWidth: 1, borderRadius: 12, padding: 12, width: 300, gap: 6 },
+  errorBox: { backgroundColor: '#2a1215', borderColor: '#7f1d1d', borderWidth: 1, borderRadius: 12, padding: 12, width: 300, gap: 6, zIndex: 20 },
   errorText: { color: '#fca5a5', fontSize: 12, lineHeight: 17 },
   errorLink: { color: '#60a5fa', fontSize: 12, fontWeight: '700' },
   permissionWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, gap: 10, backgroundColor: '#050505' },
@@ -209,7 +218,6 @@ const styles = StyleSheet.create({
   permissionText: { color: '#a1a1aa', fontSize: 12, textAlign: 'center', lineHeight: 17 },
   primaryBtn: { backgroundColor: '#2563eb', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, marginTop: 4 },
   primaryBtnText: { color: '#ffffff', fontWeight: '700', fontSize: 13 },
-  centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   bottomBar: { alignItems: 'center', paddingBottom: 10, gap: 12, zIndex: 10 },
   row: { flexDirection: 'row', gap: 10 },
   captureBtn: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#2563eb', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 5 },

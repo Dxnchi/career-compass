@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { StyleSheet, SafeAreaView, StatusBar, Animated, Platform } from 'react-native';
+import { StyleSheet, StatusBar, Animated, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
   INITIAL_USER_PROFILE,
