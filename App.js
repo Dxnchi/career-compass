@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { StyleSheet, SafeAreaView, StatusBar, Animated, Platform } from 'react-native';
 
 import {
+  INITIAL_USER_PROFILE,
   INITIAL_SUBJECT_GRADES,
   INITIAL_PROGRAM_MATCHES,
   DEADLINES_DATA,
@@ -36,7 +37,7 @@ const USE_NATIVE_DRIVER = Platform.OS !== 'web';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState('welcome');
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(INITIAL_USER_PROFILE || null);
   const [grades, setGrades] = useState(INITIAL_SUBJECT_GRADES);
   const [programs, setPrograms] = useState(INITIAL_PROGRAM_MATCHES);
   const [universities, setUniversities] = useState([]);
@@ -120,7 +121,7 @@ export default function App() {
     // 2. Auth state subscription
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
-        setUser(null);
+        setUser(INITIAL_USER_PROFILE || null);
         navigateWithAnimation('welcome');
       }
     });
@@ -239,7 +240,6 @@ export default function App() {
   };
 
   const showBottomNav =
-    Boolean(user) &&
     currentScreen !== 'welcome' &&
     currentScreen !== 'auth' &&
     currentScreen !== 'scan' &&
@@ -339,6 +339,7 @@ export default function App() {
         {currentScreen === 'profile' && (
           <ProfileScreen
             user={user || { name: 'Student', school: 'Secondary School', grade: 'Grade 12' }}
+            aps={currentAps}
             currentAps={currentAps}
             onNavigateSettings={() => navigateWithAnimation('settings')}
             onNavigate={navigateWithAnimation}
