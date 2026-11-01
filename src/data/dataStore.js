@@ -1,5 +1,16 @@
 import { supabase } from '../lib/supabase';
 
+export const INITIAL_USER_PROFILE = {
+  name: 'Thabo Mokoena',
+  grade: 'Grade 11 Student',
+  school: 'Brakpan High School, Gauteng',
+  email: 'thabo.mokoena@student.za',
+  phone: '+27 82 555 0192',
+  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+  targetCareer: 'Software Engineering & AI',
+  preferredProvince: 'Western Cape / Gauteng',
+};
+
 export const INITIAL_SUBJECT_GRADES = [
   { id: '1', name: 'English Home Language', subject: 'English Home Language', percentage: 72, level: 6 },
   { id: '2', name: 'Mathematics', subject: 'Mathematics', percentage: 68, level: 5 },
@@ -132,106 +143,37 @@ export const UNIVERSITIES_DATA = [
 ];
 
 export const DEADLINES_DATA = [
-  {
-    id: 'd1',
-    category: 'Funding',
-    month: 'SEP',
-    day: '01',
-    title: 'NSFAS Online Applications Open',
-    subtitle: 'Apply early on my.nsfas.org.za with certified ID and proof of income.',
-    url: 'https://my.nsfas.org.za/',
-  },
-  {
-    id: 'd2',
-    category: 'Admissions',
-    month: 'SEP',
-    day: '30',
-    title: 'UJ & Wits General Admissions Close',
-    subtitle: 'Final deadline for undergraduate degree applications.',
-    url: 'https://www.uj.ac.za/admissions-aid/apply/',
-  },
-  {
-    id: 'd3',
-    category: 'Testing',
-    month: 'OCT',
-    day: '14',
-    title: 'National Benchmark Test (NBT) Window',
-    subtitle: 'Final booking window for faculties requiring AQL and MAT scores.',
-    url: 'https://www.nbt.ac.za/',
-  },
+  { id: 'dl-1', month: 'AUG', day: '31', title: 'UCT Early Applications', subtitle: 'Submit final grade 11 marks.' },
+  { id: 'dl-2', month: 'SEP', day: '30', title: 'Wits General Apps Close', subtitle: 'Ensure NBT results are linked.' },
+  { id: 'dl-3', month: 'OCT', day: '31', title: 'NSFAS Funding Opens', subtitle: 'Prepare supporting documents.' },
 ];
 
-export async function fetchProgramsFromSupabase() {
+// Offline fallback list for the Explore screen (used when Supabase is unreachable or empty).
+export const UNIVERSITY_DATA = [
+  { id: 'uni-uct', name: 'University of Cape Town', location: 'Cape Town, Western Cape', description: 'Public research university in Cape Town.' },
+  { id: 'uni-wits', name: 'University of the Witwatersrand', location: 'Johannesburg, Gauteng', description: 'Public research university in Johannesburg.' },
+  { id: 'uni-up', name: 'University of Pretoria', location: 'Pretoria, Gauteng', description: 'Public research university in Pretoria.' },
+  { id: 'uni-sun', name: 'Stellenbosch University', location: 'Stellenbosch, Western Cape', description: 'Public research university in Stellenbosch.' },
+  { id: 'uni-uj', name: 'University of Johannesburg', location: 'Johannesburg, Gauteng', description: 'Public university in Johannesburg.' },
+];
+
+// ---- Supabase loaders used by App.js on start-up ----
+// These never throw: on any problem (offline, missing table, unexpected columns) they return null,
+// and App.js keeps the bundled offline data above.
+// NOTE: table names 'programs' and 'universities' are assumptions. Change them if your tables differ.
+const looksLikeProgram = (r) => r && typeof r.title === 'string' && typeof r.universityName === 'string';
+const looksLikeUniversity = (r) => r && typeof r.name === 'string';
+
+async function loadTable(table, isValid) {
   try {
-    const { data, error } = await supabase
-      .from('programmes')
-      .select(`
-        *,
-        institutions ( name, code ),
-        programme_requirements ( subject_name, min_level, is_alternative_group )
-      `);
-
-    if (error) throw error;
-    if (!data || data.length === 0) return INITIAL_PROGRAM_MATCHES;
-
-    return data.map((item) => ({
-      ...item,
-      id: item.id,
-      title: item.name || item.title || 'Degree Programme',
-      name: item.name || item.title || 'Degree Programme',
-      universityName: item.institutions?.name || 'South African University',
-      universityCode: item.institutions?.code || '',
-      faculty: item.faculty || 'General Faculty',
-      location: item.location || 'South Africa',
-      min_aps: item.min_aps || 26,
-      requiredAps: item.min_aps || 26,
-      ecp_available: Boolean(item.ecp_available),
-      ecp_min_aps: item.ecp_min_aps || (item.min_aps ? item.min_aps - 4 : 22),
-      durationYears: item.duration_years || 3,
-      nqfLevel: item.nqf_level || 7,
-      coverImage:
-        item.cover_image ||
-        'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=800&q=80',
-      description:
-        item.description ||
-        `Undergraduate ${item.faculty || ''} programme offered at ${item.institutions?.name || 'the university'}.`,
-      aiCareerInsight:
-        item.ai_career_insight ||
-        'Graduates qualify for strong entry-level roles across South African private and public sectors.',
-      programme_requirements: Array.isArray(item.programme_requirements)
-        ? item.programme_requirements
-        : [],
-    }));
-  } catch (err) {
-    console.warn('Supabase fetchPrograms notice, using fallback data:', err.message);
-    return INITIAL_PROGRAM_MATCHES;
+    const { data, error } = await supabase.from(table).select('*');
+    if (error || !Array.isArray(data)) return null;
+    const rows = data.filter(isValid);
+    return rows.length > 0 ? rows : null;
+  } catch {
+    return null;
   }
 }
 
-export async function fetchUniversitiesFromSupabase() {
-  try {
-    const { data, error } = await supabase.from('institutions').select('*');
-    if (error) throw error;
-    if (!data || data.length === 0) return UNIVERSITIES_DATA;
-
-    return data.map((u, idx) => ({
-      id: u.id || `uni-${idx}`,
-      code: u.code || 'UNI',
-      name: u.name || 'University',
-      location: u.location || 'South Africa',
-      province: u.province || 'Gauteng',
-      ranking: u.ranking || idx + 1,
-      closeDate: u.close_date || '30 Sep',
-      portalUrl: u.portal_url || `https://www.google.com/search?q=${encodeURIComponent(u.name + ' online application')}`,
-      image:
-        u.image ||
-        'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=800&q=80',
-      description:
-        u.description ||
-        `Official undergraduate admissions and degree faculties for ${u.name}.`,
-    }));
-  } catch (err) {
-    console.warn('Supabase fetchUniversities notice, using fallback data:', err.message);
-    return UNIVERSITIES_DATA;
-  }
-}
+export const fetchProgramsFromSupabase = () => loadTable('programs', looksLikeProgram);
+export const fetchUniversitiesFromSupabase = () => loadTable('universities', looksLikeUniversity);

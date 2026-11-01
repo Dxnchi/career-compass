@@ -14,6 +14,7 @@ import {
 import { calculateAPS } from './src/utils/apsCalculator';
 import { evaluateStudentEligibility } from './src/services/matchingEngine';
 import { supabase } from './src/lib/supabase';
+import { saveScan } from './src/lib/scanStore';
 
 // Components & Modals
 import Navigation from './src/components/Navigation';
@@ -39,6 +40,9 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState('welcome');
   const [user, setUser] = useState(INITIAL_USER_PROFILE || null);
   const [grades, setGrades] = useState(INITIAL_SUBJECT_GRADES);
+  // Grades from the latest scan, held here until the student confirms them
+  const [pendingGrades, setPendingGrades] = useState(INITIAL_SUBJECT_GRADES);
+  const [scanMeta, setScanMeta] = useState(null);
   const [programs, setPrograms] = useState(INITIAL_PROGRAM_MATCHES);
   const [universities, setUniversities] = useState([]);
   const [selectedProgram, setSelectedProgram] = useState(INITIAL_PROGRAM_MATCHES[0]);
@@ -220,16 +224,27 @@ export default function App() {
     navigateWithAnimation('welcome');
   };
 
-  const handleScanDone = (scannedGrades) => {
+  const handleScanDone = (scannedGrades, meta = null) => {
     if (Array.isArray(scannedGrades) && scannedGrades.length > 0) {
-      setGrades(scannedGrades);
+      setPendingGrades(scannedGrades);
     }
+    setScanMeta(meta);
     navigateWithAnimation('confirm_grades');
   };
 
-  const handleGradesConfirmed = (finalGrades) => {
+  const handleGradesConfirmed = async (finalGrades) => {
     if (Array.isArray(finalGrades)) {
       setGrades(finalGrades);
+      try {
+        await saveScan({
+          grades: finalGrades,
+          imageUri: scanMeta?.imageUri || null,
+          rawText: scanMeta?.rawText || '',
+          source: scanMeta?.source || 'ocr',
+        });
+      } catch (e) {
+        // Saving locally failed; the grades are still in memory so matching continues
+      }
     }
     navigateWithAnimation('matches');
   };
@@ -295,7 +310,8 @@ export default function App() {
 
         {currentScreen === 'confirm_grades' && (
           <ConfirmGradesScreen
-            initialGrades={grades}
+            initialGrades={pendingGrades}
+            scanMeta={scanMeta}
             onBack={() => navigateWithAnimation('scan')}
             onConfirm={handleGradesConfirmed}
             onConfirmAndMatch={handleGradesConfirmed}
