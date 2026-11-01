@@ -1,7 +1,9 @@
 import React, { useRef, useEffect } from 'react';
-import { StyleSheet, View, Text, ScrollView, Image, Animated } from 'react-native';
-import { Scan, Bell, MapPin, Lightbulb } from 'lucide-react-native';
+import { StyleSheet, View, Text, ScrollView, Image, Animated, Platform } from 'react-native';
+import { Scan, Bell, MapPin, Lightbulb, CheckCircle2 } from 'lucide-react-native';
 import AnimatedPressable from '../components/AnimatedPressable';
+
+const USE_NATIVE_DRIVER = Platform.OS !== 'web';
 
 export default function HomeScreen({
   user = {},
@@ -15,7 +17,14 @@ export default function HomeScreen({
   const safeMatches = Array.isArray(matches) ? matches : [];
   const safeDeadlines = Array.isArray(deadlines) ? deadlines : [];
 
-  // Card staggered entry animation
+  const topEligibleMatches = safeMatches
+    .filter((p) => p?.status === 'DIRECT_MATCH' || p?.status === 'eligible')
+    .slice(0, 2);
+
+  const displayedMatches = topEligibleMatches.length > 0
+    ? topEligibleMatches
+    : safeMatches.slice(0, 2);
+
   const heroSlide = useRef(new Animated.Value(20)).current;
   const heroOpacity = useRef(new Animated.Value(0)).current;
 
@@ -24,20 +33,32 @@ export default function HomeScreen({
       Animated.timing(heroOpacity, {
         toValue: 1,
         duration: 350,
-        useNativeDriver: true,
+        useNativeDriver: USE_NATIVE_DRIVER,
       }),
       Animated.spring(heroSlide, {
         toValue: 0,
         speed: 18,
         bounciness: 6,
-        useNativeDriver: true,
+        useNativeDriver: USE_NATIVE_DRIVER,
       }),
     ]).start();
   }, []);
 
+  const getHeroSubtitle = () => {
+    if (currentAps === 0) {
+      return 'Scan your Grade 11 or Matric statement to calculate your official university APS and discover matching degree programmes.';
+    }
+    if (currentAps >= 35) {
+      return `Your verified APS is ${currentAps} Points. You qualify for direct entry into competitive programmes across top South African universities.`;
+    }
+    if (currentAps >= 28) {
+      return `Your verified APS is ${currentAps} Points. You have strong degree options across Commerce, Science, and Humanities faculties.`;
+    }
+    return `Your verified APS is ${currentAps} Points. Explore tailored degree pathways and Extended Curriculum Programmes (ECP).`;
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.scroll}>
-      {/* Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.brandTitle}>Career Compass</Text>
@@ -52,7 +73,6 @@ export default function HomeScreen({
         </AnimatedPressable>
       </View>
 
-      {/* Hero Card */}
       <Animated.View
         style={[
           styles.heroCard,
@@ -64,7 +84,13 @@ export default function HomeScreen({
       >
         <Text style={styles.heroGreeting}>Hi {firstName}!</Text>
         <Text style={styles.heroText}>
-          Your verified APS is <Text style={styles.boldAps}>{currentAps} Points</Text>. You qualify for direct entry into top tier programs.
+          {currentAps > 0 ? (
+            <>
+              Your verified APS is <Text style={styles.boldAps}>{currentAps} Points</Text>. {getHeroSubtitle().replace(`Your verified APS is ${currentAps} Points. `, '')}
+            </>
+          ) : (
+            getHeroSubtitle()
+          )}
         </Text>
         <AnimatedPressable
           style={styles.heroBtn}
@@ -75,7 +101,6 @@ export default function HomeScreen({
         </AnimatedPressable>
       </Animated.View>
 
-      {/* Scan CTA */}
       <AnimatedPressable
         style={styles.scanCta}
         onPress={() => onNavigate('scan')}
@@ -83,59 +108,73 @@ export default function HomeScreen({
         <View style={styles.scanIconWrap}>
           <Scan color="#3b82f6" size={24} />
         </View>
-        <Text style={styles.scanTitle}>Scan New Report Card</Text>
+        <Text style={styles.scanTitle}>Scan Report Card</Text>
         <Text style={styles.scanSub}>
-          Take a photo or upload grades to recalculate requirements.
+          Snap a photo of your NSC statement to extract grades and match university criteria.
         </Text>
       </AnimatedPressable>
 
-      {/* Recommended Section */}
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Top Eligible Degrees</Text>
+        <Text style={styles.sectionTitle}>
+          {topEligibleMatches.length > 0 ? 'Top Eligible Degrees' : 'Recommended Degrees'}
+        </Text>
         <AnimatedPressable onPress={() => onNavigate('matches')}>
           <Text style={styles.sectionLink}>View all</Text>
         </AnimatedPressable>
       </View>
 
-      {safeMatches.slice(0, 2).map((prog) => (
-        <AnimatedPressable
-          key={prog?.id || Math.random().toString()}
-          style={styles.progCard}
-          onPress={() => onSelectProgram(prog)}
-        >
-          {prog?.coverImage ? (
-            <Image source={{ uri: prog.coverImage }} style={styles.progImage} />
-          ) : (
-            <View style={[styles.progImage, { backgroundColor: '#1e293b' }]} />
-          )}
-          <View style={styles.progCardBody}>
-            <View style={styles.badgeRow}>
-              <View style={styles.scoreBadge}>
-                <Text style={styles.scoreText}>{prog?.matchScore || 0}% Match</Text>
-              </View>
-              <Text style={styles.reqAps}>APS: {prog?.requiredAps || '--'}</Text>
-            </View>
-            <Text style={styles.progTitle}>{prog?.title || 'Degree Program'}</Text>
-            <Text style={styles.progUni}>{prog?.universityName || 'University'}</Text>
-            <View style={styles.progFooter}>
-              <View style={styles.locationWrap}>
-                <MapPin color="#71717a" size={13} />
-                <Text style={styles.locationText}>{prog?.location || 'South Africa'}</Text>
-              </View>
-              <Text style={styles.detailLink}>Details →</Text>
-            </View>
-          </View>
-        </AnimatedPressable>
-      ))}
+      {displayedMatches.map((prog, index) => {
+        const isDirect = prog?.status === 'DIRECT_MATCH' || prog?.status === 'eligible';
+        const progTitle = prog?.title || prog?.name || 'Degree Programme';
+        const requiredAps = prog?.requiredAps || prog?.min_aps || '--';
 
-      {/* Deadlines Section */}
+        return (
+          <AnimatedPressable
+            key={prog?.id || `${progTitle}-${index}`}
+            style={styles.progCard}
+            onPress={() => onSelectProgram(prog)}
+          >
+            {prog?.coverImage ? (
+              <Image source={{ uri: prog.coverImage }} style={styles.progImage} />
+            ) : (
+              <View style={[styles.progImage, { backgroundColor: '#1e293b' }]} />
+            )}
+            <View style={styles.progCardBody}>
+              <View style={styles.badgeRow}>
+                <View style={[styles.scoreBadge, !isDirect && { backgroundColor: '#374151' }]}>
+                  {isDirect && <CheckCircle2 color="#34d399" size={11} style={{ marginRight: 3 }} />}
+                  <Text style={[styles.scoreText, !isDirect && { color: '#d1d5db' }]}>
+                    {prog?.matchScore || 0}% {isDirect ? 'Eligible' : 'Match'}
+                  </Text>
+                </View>
+                <Text style={styles.reqAps}>Req APS: {requiredAps}</Text>
+              </View>
+
+              <Text style={styles.progTitle}>{progTitle}</Text>
+              <Text style={styles.progUni}>
+                {prog?.universityName || 'South African University'}
+                {prog?.faculty ? ` • ${prog.faculty}` : ''}
+              </Text>
+
+              <View style={styles.progFooter}>
+                <View style={styles.locationWrap}>
+                  <MapPin color="#71717a" size={13} />
+                  <Text style={styles.locationText}>{prog?.location || 'South Africa'}</Text>
+                </View>
+                <Text style={styles.detailLink}>Details →</Text>
+              </View>
+            </View>
+          </AnimatedPressable>
+        );
+      })}
+
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Key Admission Dates</Text>
       </View>
       <View style={styles.deadlineBox}>
-        {safeDeadlines.map((item) => (
+        {safeDeadlines.map((item, index) => (
           <AnimatedPressable
-            key={item?.id || Math.random().toString()}
+            key={item?.id || `deadline-${index}`}
             style={styles.deadlineRow}
             scaleTo={0.98}
             onPress={() => onNavigate('notifications')}
@@ -179,7 +218,7 @@ const styles = StyleSheet.create({
   progImage: { width: '100%', height: 130 },
   progCardBody: { padding: 14 },
   badgeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  scoreBadge: { backgroundColor: '#064e3b', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  scoreBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#064e3b', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   scoreText: { color: '#34d399', fontSize: 11, fontWeight: 'bold' },
   reqAps: { color: '#a1a1aa', fontSize: 12 },
   progTitle: { color: '#f4f4f5', fontSize: 16, fontWeight: 'bold' },

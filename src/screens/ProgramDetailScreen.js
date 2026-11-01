@@ -11,7 +11,7 @@ import {
   Linking,
   Alert,
 } from 'react-native';
-import { ArrowLeft, Lightbulb, CheckCircle2, ExternalLink } from 'lucide-react-native';
+import { ArrowLeft, Lightbulb, CheckCircle2, ExternalLink, XCircle, Award } from 'lucide-react-native';
 
 // Curated Deep-Links for Direct SA Application Portals (Prevents homepage "doomscrolling")
 const SA_DIRECT_APPLICATION_PORTALS = {
@@ -39,10 +39,19 @@ export default function ProgramDetailScreen({
 }) {
   const [apiLoading, setApiLoading] = useState(false);
 
-  const requirements = Array.isArray(program?.admissionRequirements)
+  // Teammate's new OCR & APS requirement state variables
+  const passedReqs = Array.isArray(program?.passedRequirements) ? program.passedRequirements : [];
+  const missingReqs = Array.isArray(program?.missingRequirements) ? program.missingRequirements : [];
+  
+  const rawRequirements = Array.isArray(program?.programme_requirements)
+    ? program.programme_requirements
+    : Array.isArray(program?.admissionRequirements)
     ? program.admissionRequirements
     : [];
 
+  const studentAps = program?.studentAps || 0;
+  const requiredAps = program?.requiredAps || program?.minAPS || 0;
+  const isApsMet = studentAps >= requiredAps;
   const universityName = program?.universityName || 'University of Johannesburg';
 
   /**
@@ -130,10 +139,34 @@ export default function ProgramDetailScreen({
         <View style={[styles.heroImg, { backgroundColor: '#1e293b' }]} />
       )}
 
-      <Text style={styles.title}>{program?.title || 'Program'}</Text>
+      <Text style={styles.title}>{program?.title || program?.name || 'Program'}</Text>
       <Text style={styles.uni}>
-        {universityName} • {program?.location || 'South Africa'}
+        {universityName}
+        {program?.location ? ` • ${program.location}` : ''}
+        {program?.faculty ? ` • ${program.faculty}` : ''}
       </Text>
+
+      {/* Teammate's APS Comparison Card */}
+      <View style={styles.apsCard}>
+        <View style={styles.apsItem}>
+          <Text style={styles.apsHeader}>Required APS</Text>
+          <Text style={styles.apsNumber}>{requiredAps || '--'}</Text>
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.apsItem}>
+          <Text style={styles.apsHeader}>Your APS</Text>
+          <Text style={[styles.apsNumber, { color: isApsMet ? '#34d399' : '#f87171' }]}>
+            {studentAps || '--'}
+          </Text>
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.apsItem}>
+          <Text style={styles.apsHeader}>Status</Text>
+          <Text style={[styles.statusTag, { color: isApsMet ? '#34d399' : '#f87171' }]}>
+            {isApsMet ? 'APS Met' : 'Below Target'}
+          </Text>
+        </View>
+      </View>
 
       <View style={styles.badgeRow}>
         <View style={styles.specBadge}>
@@ -142,9 +175,12 @@ export default function ProgramDetailScreen({
         <View style={styles.specBadge}>
           <Text style={styles.specText}>NQF Level {program?.nqfLevel || 7}</Text>
         </View>
-        {program?.averageSalary && (
-          <View style={styles.specBadge}>
-            <Text style={styles.specText}>Salary: {program.averageSalary}</Text>
+        {program?.matchScore !== undefined && (
+          <View style={[styles.specBadge, { backgroundColor: '#064e3b' }]}>
+            <Award color="#34d399" size={12} />
+            <Text style={[styles.specText, { color: '#34d399' }]}>
+              {program.matchScore}% Match
+            </Text>
           </View>
         )}
       </View>
@@ -161,19 +197,43 @@ export default function ProgramDetailScreen({
         </View>
       )}
 
+      {/* Teammate's OCR Prerequisite Breakdown */}
       <View style={styles.reqCard}>
         <Text style={styles.reqTitle}>Admission Thresholds</Text>
-        <Text style={styles.reqSub}>Minimum NSC Subject Percentages:</Text>
-        {requirements.length > 0 ? (
-          requirements.map((r, i) => (
+        <Text style={styles.reqSub}>Required NSC Subject Levels vs Your Marks:</Text>
+
+        {passedReqs.length > 0 || missingReqs.length > 0 ? (
+          <>
+            {passedReqs.map((r, i) => (
+              <View key={`passed-${i}`} style={styles.reqRow}>
+                <CheckCircle2 color="#34d399" size={16} />
+                <Text style={styles.reqSubject}>{r.subject}</Text>
+                <Text style={styles.reqAchieved}>
+                  You: Lvl {r.achieved} <Text style={styles.reqTarget}>(Req L{r.required})</Text>
+                </Text>
+              </View>
+            ))}
+
+            {missingReqs.map((r, i) => (
+              <View key={`missing-${i}`} style={styles.reqRow}>
+                <XCircle color="#f87171" size={16} />
+                <Text style={[styles.reqSubject, { color: '#f87171' }]}>{r.subject}</Text>
+                <Text style={[styles.reqAchieved, { color: '#f87171' }]}>
+                  {r.achieved ? `You: Lvl ${r.achieved}` : 'Not Taken'} <Text style={{ color: '#ef4444' }}>(Req L{r.required})</Text>
+                </Text>
+              </View>
+            ))}
+          </>
+        ) : rawRequirements.length > 0 ? (
+          rawRequirements.map((r, i) => (
             <View key={i} style={styles.reqRow}>
-              <CheckCircle2 color="#34d399" size={16} />
-              <Text style={styles.reqSubject}>{r?.subject || 'Subject'}</Text>
-              <Text style={styles.reqTarget}>{r?.requiredPercentage || 50}%</Text>
+              <CheckCircle2 color="#60a5fa" size={16} />
+              <Text style={styles.reqSubject}>{r?.subject_name || r?.subject || 'Subject'}</Text>
+              <Text style={styles.reqTarget}>Lvl {r?.min_level || r?.requiredPercentage || 4}</Text>
             </View>
           ))
         ) : (
-          <Text style={{ color: '#71717a', fontSize: 12 }}>Check official faculty prospectus.</Text>
+          <Text style={{ color: '#71717a', fontSize: 12 }}>Check official faculty prospectus for prerequisite breakdown.</Text>
         )}
       </View>
 
@@ -182,7 +242,7 @@ export default function ProgramDetailScreen({
         <Text style={styles.applyBtnText}>Start Pre-Application Checklist</Text>
       </TouchableOpacity>
 
-      {/* New API-Driven Official SA University Portal Redirect */}
+      {/* Your API-Driven Official SA University Portal Redirect */}
       <TouchableOpacity
         style={[styles.portalBtn, apiLoading && { opacity: 0.7 }]}
         onPress={handleOfficialPortalRedirect}
@@ -208,8 +268,14 @@ const styles = StyleSheet.create({
   heroImg: { width: '100%', height: 180, borderRadius: 16, marginBottom: 16 },
   title: { color: '#f4f4f5', fontSize: 22, fontWeight: 'bold' },
   uni: { color: '#a1a1aa', fontSize: 14, marginTop: 4 },
-  badgeRow: { flexDirection: 'row', gap: 8, marginVertical: 12 },
-  specBadge: { backgroundColor: '#1e293b', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  apsCard: { flexDirection: 'row', backgroundColor: '#141416', borderRadius: 14, padding: 12, marginVertical: 12, borderWidth: 1, borderColor: '#27272a', justifyContent: 'space-around', alignItems: 'center' },
+  apsItem: { alignItems: 'center' },
+  apsHeader: { color: '#71717a', fontSize: 11, marginBottom: 4 },
+  apsNumber: { color: '#ffffff', fontSize: 18, fontWeight: 'bold' },
+  statusTag: { fontSize: 12, fontWeight: 'bold' },
+  divider: { width: 1, height: 30, backgroundColor: '#27272a' },
+  badgeRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  specBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#1e293b', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   specText: { color: '#bfdbfe', fontSize: 11, fontWeight: '600' },
   desc: { color: '#d4d4d8', fontSize: 13, lineHeight: 20, marginVertical: 8 },
   insightBox: {
@@ -233,9 +299,10 @@ const styles = StyleSheet.create({
   },
   reqTitle: { color: '#f4f4f5', fontWeight: 'bold', fontSize: 15 },
   reqSub: { color: '#71717a', fontSize: 12, marginBottom: 12, marginTop: 2 },
-  reqRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+  reqRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#1c1c20' },
   reqSubject: { color: '#d4d4d8', fontSize: 13, flex: 1 },
-  reqTarget: { color: '#60a5fa', fontWeight: 'bold', fontSize: 13 },
+  reqAchieved: { color: '#a1a1aa', fontSize: 12, fontWeight: '600' },
+  reqTarget: { color: '#60a5fa', fontWeight: 'bold' },
   applyBtn: {
     backgroundColor: '#2563eb',
     padding: 16,

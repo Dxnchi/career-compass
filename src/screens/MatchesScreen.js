@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, AlertCircle } from 'lucide-react-native';
 
 export default function MatchesScreen({
   matches = [],
@@ -10,11 +10,18 @@ export default function MatchesScreen({
   const [filter, setFilter] = useState('all');
 
   const safeMatches = Array.isArray(matches) ? matches : [];
+
   const filtered = safeMatches.filter((item) => {
     if (!item) return false;
-    if (filter === 'eligible') return item.status === 'eligible';
-    if (filter === 'tech') return item.category === 'Tech';
-    if (filter === 'engineering') return item.category === 'Engineering';
+    const isDirect = item.status === 'DIRECT_MATCH' || item.status === 'eligible';
+    const isECP = item.status === 'ECP_ELIGIBLE' || item.status === 'close';
+    const facultyStr = (item.faculty || item.category || '').toLowerCase();
+
+    if (filter === 'eligible') return isDirect;
+    if (filter === 'ecp') return isECP;
+    if (filter === 'tech') return facultyStr.includes('science') || facultyStr.includes('tech') || facultyStr.includes('informat');
+    if (filter === 'engineering') return facultyStr.includes('engineering') || facultyStr.includes('built');
+    if (filter === 'business') return facultyStr.includes('business') || facultyStr.includes('economic') || facultyStr.includes('commerce');
     return true;
   });
 
@@ -30,9 +37,11 @@ export default function MatchesScreen({
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar}>
         {[
           { id: 'all', label: 'All Degrees' },
-          { id: 'eligible', label: 'Direct Entry Only' },
+          { id: 'eligible', label: 'Direct Entry' },
+          { id: 'ecp', label: 'Extended (ECP)' },
           { id: 'tech', label: 'Computing & IT' },
           { id: 'engineering', label: 'Engineering' },
+          { id: 'business', label: 'Commerce' },
         ].map((tab) => (
           <TouchableOpacity
             key={tab.id}
@@ -48,45 +57,72 @@ export default function MatchesScreen({
 
       <View style={styles.cardList}>
         {filtered.length > 0 ? (
-          filtered.map((prog) => (
-            <TouchableOpacity
-              key={prog.id || Math.random().toString()}
-              style={styles.card}
-              onPress={() => onSelectProgram(prog)}
-            >
-              <View style={styles.cardHeader}>
-                <Text style={styles.title}>{prog.title || 'Degree'}</Text>
-                {prog.status === 'eligible' && (
-                  <View style={[styles.badge, { backgroundColor: '#064e3b' }]}>
-                    <CheckCircle2 color="#34d399" size={13} />
-                    <Text style={[styles.badgeText, { color: '#34d399' }]}>Eligible</Text>
-                  </View>
-                )}
-                {prog.status === 'close' && (
-                  <View style={[styles.badge, { backgroundColor: '#451a03' }]}>
-                    <AlertTriangle color="#fbbf24" size={13} />
-                    <Text style={[styles.badgeText, { color: '#fbbf24' }]}>Close Match</Text>
-                  </View>
-                )}
-                {prog.status === 'not_eligible' && (
-                  <View style={[styles.badge, { backgroundColor: '#27272a' }]}>
-                    <XCircle color="#a1a1aa" size={13} />
-                    <Text style={[styles.badgeText, { color: '#a1a1aa' }]}>Below Threshold</Text>
-                  </View>
-                )}
-              </View>
+          filtered.map((prog, index) => {
+            const isDirect = prog.status === 'DIRECT_MATCH' || prog.status === 'eligible';
+            const isECP = prog.status === 'ECP_ELIGIBLE' || prog.status === 'close';
+            const missingReqs = prog.missingRequirements || [];
+            const hasMissingSubjects = missingReqs.length > 0;
 
-              <Text style={styles.uniName}>{prog.universityName || 'University'}</Text>
-              {prog.missingNote && (
-                <Text style={styles.missingWarning}>{prog.missingNote}</Text>
-              )}
+            return (
+              <TouchableOpacity
+                key={prog.id || prog.programmeId || `prog-${index}`}
+                style={styles.card}
+                onPress={() => onSelectProgram(prog)}
+              >
+                <View style={styles.cardHeader}>
+                  <Text style={styles.title}>{prog.title || prog.programmeName || prog.name || 'Degree'}</Text>
+                  
+                  {isDirect && (
+                    <View style={[styles.badge, { backgroundColor: '#064e3b' }]}>
+                      <CheckCircle2 color="#34d399" size={13} />
+                      <Text style={[styles.badgeText, { color: '#34d399' }]}>Direct Entry</Text>
+                    </View>
+                  )}
 
-              <View style={styles.metaRow}>
-                <Text style={styles.apsLabel}>Req APS: <Text style={styles.apsValue}>{prog.requiredAps || '--'}</Text></Text>
-                <Text style={styles.matchScore}>{prog.matchScore || 0}% Compatibility</Text>
-              </View>
-            </TouchableOpacity>
-          ))
+                  {isECP && (
+                    <View style={[styles.badge, { backgroundColor: '#451a03' }]}>
+                      <AlertTriangle color="#fbbf24" size={13} />
+                      <Text style={[styles.badgeText, { color: '#fbbf24' }]}>Extended (ECP)</Text>
+                    </View>
+                  )}
+
+                  {!isDirect && !isECP && (
+                    <View style={[styles.badge, { backgroundColor: '#27272a' }]}>
+                      <XCircle color="#a1a1aa" size={13} />
+                      <Text style={[styles.badgeText, { color: '#a1a1aa' }]}>Ineligible</Text>
+                    </View>
+                  )}
+                </View>
+
+                <Text style={styles.uniName}>
+                  {prog.universityName || 'South African University'}
+                  {prog.faculty ? ` • ${prog.faculty}` : ''}
+                </Text>
+
+                {/* Explicit prerequisite error message */}
+                {hasMissingSubjects ? (
+                  <View style={styles.warningBox}>
+                    <AlertCircle color="#f87171" size={13} style={{ marginTop: 2 }} />
+                    <Text style={styles.warningText}>
+                      Missing: {missingReqs.map(r => `${r.subject} (Req L${r.required})`).join(', ')}
+                    </Text>
+                  </View>
+                ) : prog.missingNote ? (
+                  <View style={styles.warningBox}>
+                    <AlertCircle color="#fbbf24" size={13} style={{ marginTop: 2 }} />
+                    <Text style={[styles.warningText, { color: '#fbbf24' }]}>{prog.missingNote}</Text>
+                  </View>
+                ) : null}
+
+                <View style={styles.metaRow}>
+                  <Text style={styles.apsLabel}>
+                    Req APS: <Text style={styles.apsValue}>{prog.requiredAps || prog.minAPS || '--'}</Text>
+                  </Text>
+                  <Text style={styles.matchScore}>{prog.matchScore || 0}% Match</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })
         ) : (
           <View style={styles.emptyWrap}>
             <Text style={styles.emptyText}>No matching programs for this filter.</Text>
@@ -113,7 +149,8 @@ const styles = StyleSheet.create({
   badge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   badgeText: { fontSize: 11, fontWeight: 'bold' },
   uniName: { color: '#a1a1aa', fontSize: 13, marginTop: 4 },
-  missingWarning: { color: '#fbbf24', fontSize: 12, marginTop: 6, backgroundColor: '#291804', padding: 6, borderRadius: 6 },
+  warningBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, backgroundColor: '#2a1215', padding: 8, borderRadius: 8, marginTop: 8 },
+  warningText: { color: '#f87171', fontSize: 12, flex: 1, lineHeight: 16 },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#27272a' },
   apsLabel: { color: '#71717a', fontSize: 12 },
   apsValue: { color: '#60a5fa', fontWeight: 'bold' },

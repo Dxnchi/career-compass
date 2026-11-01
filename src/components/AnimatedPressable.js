@@ -1,37 +1,47 @@
 import React, { useRef } from 'react';
-import { Animated, TouchableWithoutFeedback } from 'react-native';
+import { Pressable, Animated, Platform } from 'react-native';
 
-export default function AnimatedPressable({ children, onPress, style, scaleTo = 0.96, disabled = false }) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+const USE_NATIVE_DRIVER = Platform.OS !== 'web';
+
+export default function AnimatedPressable({
+  children,
+  style,
+  scaleTo = 0.96,
+  onPress,
+  disabled = false,
+  ...rest
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
+    Animated.spring(scale, {
       toValue: scaleTo,
-      useNativeDriver: true,
-      speed: 40,
-      bounciness: 6,
+      speed: 24,
+      bounciness: 4,
+      useNativeDriver: USE_NATIVE_DRIVER,
     }).start();
   };
 
   const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
+    Animated.spring(scale, {
       toValue: 1,
-      useNativeDriver: true,
-      speed: 30,
-      bounciness: 8,
+      speed: 24,
+      bounciness: 4,
+      useNativeDriver: USE_NATIVE_DRIVER,
     }).start();
   };
 
   return (
-    <TouchableWithoutFeedback
-      disabled={disabled}
+    <Pressable
+      onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      onPress={onPress}
+      disabled={disabled}
+      {...rest}
     >
-      <Animated.View style={[{ transform: [{ scale: scaleAnim }] }, style]}>
+      <Animated.View style={[style, { transform: [{ scale }] }]}>
         {children}
       </Animated.View>
-    </TouchableWithoutFeedback>
+    </Pressable>
   );
 }
