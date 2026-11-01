@@ -1,9 +1,84 @@
 import React, { useRef, useEffect } from 'react';
-import { StyleSheet, View, Text, ScrollView, Image, Animated, Platform } from 'react-native';
-import { Scan, Bell, MapPin, Lightbulb, CheckCircle2 } from 'lucide-react-native';
+import { StyleSheet, View, Text, ScrollView, Image, Animated, Platform, Linking, Dimensions } from 'react-native';
+import { Scan, Bell, MapPin, Lightbulb, CheckCircle2, ExternalLink, BookOpen } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import AnimatedPressable from '../components/AnimatedPressable';
 
 const USE_NATIVE_DRIVER = Platform.OS !== 'web';
+const { width } = Dimensions.get('window');
+
+const TOP_10_UNIVERSITIES = [
+  {
+    id: 'uct',
+    name: 'University of Cape Town',
+    location: 'Rondebosch, Western Cape',
+    image: 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=800&q=80',
+    prospectusUrl: 'https://www.uct.ac.za/main/prospectus',
+  },
+  {
+    id: 'wits',
+    name: 'University of the Witwatersrand',
+    location: 'Braamfontein, Gauteng',
+    image: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
+    prospectusUrl: 'https://www.wits.ac.za/course-finder/',
+  },
+  {
+    id: 'sun',
+    name: 'Stellenbosch University',
+    location: 'Stellenbosch, Western Cape',
+    image: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=800&q=80',
+    prospectusUrl: 'https://www.sun.ac.za/english/maties/enquier-now/undergraduate-prospectus',
+  },
+  {
+    id: 'up',
+    name: 'University of Pretoria',
+    location: 'Pretoria, Gauteng',
+    image: 'https://images.unsplash.com/photo-1592280771190-3e2e4d571952?auto=format&fit=crop&w=800&q=80',
+    prospectusUrl: 'https://www.up.ac.za/yearbooks/home',
+  },
+  {
+    id: 'uj',
+    name: 'University of Johannesburg',
+    location: 'Auckland Park, Gauteng',
+    image: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=800&q=80',
+    prospectusUrl: 'https://www.uj.ac.za/admissions-aid/undergraduate-prospectus/',
+  },
+  {
+    id: 'ukzn',
+    name: 'Univ. of KwaZulu-Natal',
+    location: 'Durban / Pietermaritzburg, KZN',
+    image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80',
+    prospectusUrl: 'https://applications.ukzn.ac.za/undergraduate-prospectus/',
+  },
+  {
+    id: 'nwu',
+    name: 'North-West University',
+    location: 'Potchefstroom / Mahikeng',
+    image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
+    prospectusUrl: 'https://www.nwu.ac.za/undergraduate-prospectus',
+  },
+  {
+    id: 'rhodes',
+    name: 'Rhodes University',
+    location: 'Makhanda, Eastern Cape',
+    image: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=800&q=80',
+    prospectusUrl: 'https://www.ru.ac.za/media/rhodesuniversity/content/registrar/documents/information/studentrecruitment/RU_READY_Undergraduate_Prospectus_2026_DIGITAL_A5_Landscape_24pp_18Mar2026.pdf',
+  },
+  {
+    id: 'uwc',
+    name: 'Univ. of the Western Cape',
+    location: 'Bellville, Western Cape',
+    image: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?auto=format&fit=crop&w=800&q=80',
+    prospectusUrl: 'https://www.uwc.ac.za/study/all-courses',
+  },
+  {
+    id: 'nmu',
+    name: 'Nelson Mandela University',
+    location: 'Gqeberha, Eastern Cape',
+    image: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=800&q=80',
+    prospectusUrl: 'https://www.mandela.ac.za/Study-at-Mandela/Application/Undergraduate-Prospectus',
+  },
+];
 
 export default function HomeScreen({
   user = {},
@@ -44,6 +119,17 @@ export default function HomeScreen({
     ]).start();
   }, []);
 
+  const openProspectus = async (url) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      }
+    } catch (e) {
+      console.warn('Could not open prospectus link:', e);
+    }
+  };
+
   const getHeroSubtitle = () => {
     if (currentAps === 0) {
       return 'Scan your Grade 11 or Matric statement to calculate your official university APS and discover matching degree programmes.';
@@ -58,7 +144,7 @@ export default function HomeScreen({
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.scroll}>
+    <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <View>
           <Text style={styles.brandTitle}>Career Compass</Text>
@@ -96,7 +182,7 @@ export default function HomeScreen({
           style={styles.heroBtn}
           onPress={() => onNavigate('matches')}
         >
-          <Lightbulb color="#1d4ed8" size={16} />
+          <Lightbulb color="#ffffff" size={16} />
           <Text style={styles.heroBtnText}>View AI Recommendations</Text>
         </AnimatedPressable>
       </Animated.View>
@@ -115,6 +201,41 @@ export default function HomeScreen({
       </AnimatedPressable>
 
       <View style={styles.sectionHeader}>
+        <View style={styles.sectionTitleRow}>
+          <BookOpen color="#3b82f6" size={18} />
+          <Text style={styles.sectionTitle}>Top 10 SA Universities & Prospectuses</Text>
+        </View>
+        <AnimatedPressable onPress={() => onNavigate('explore')}>
+          <Text style={styles.sectionLink}>View All</Text>
+        </AnimatedPressable>
+      </View>
+      <Text style={styles.sectionDesc}>Explore official prospectuses and admission guidelines.</Text>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.uniScrollContainer}>
+        {TOP_10_UNIVERSITIES.map((uni) => (
+          <AnimatedPressable
+            key={uni.id}
+            style={styles.uniCard}
+            onPress={() => openProspectus(uni.prospectusUrl)}
+          >
+            <Image source={{ uri: uni.image }} style={styles.uniImage} resizeMode="cover" />
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.85)']}
+              style={styles.uniOverlay}
+            />
+            <View style={styles.uniContent}>
+              <Text style={styles.uniName} numberOfLines={2}>{uni.name}</Text>
+              <Text style={styles.uniLocation} numberOfLines={1}>{uni.location}</Text>
+              <View style={styles.prospectusLinkRow}>
+                <Text style={styles.prospectusLinkText}>Prospectus</Text>
+                <ExternalLink color="#60a5fa" size={12} />
+              </View>
+            </View>
+          </AnimatedPressable>
+        ))}
+      </ScrollView>
+
+      <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>
           {topEligibleMatches.length > 0 ? 'Top Eligible Degrees' : 'Recommended Degrees'}
         </Text>
@@ -123,50 +244,60 @@ export default function HomeScreen({
         </AnimatedPressable>
       </View>
 
-      {displayedMatches.map((prog, index) => {
-        const isDirect = prog?.status === 'DIRECT_MATCH' || prog?.status === 'eligible';
-        const progTitle = prog?.title || prog?.name || 'Degree Programme';
-        const requiredAps = prog?.requiredAps || prog?.min_aps || '--';
-
-        return (
-          <AnimatedPressable
-            key={prog?.id || `${progTitle}-${index}`}
-            style={styles.progCard}
-            onPress={() => onSelectProgram(prog)}
-          >
-            {prog?.coverImage ? (
-              <Image source={{ uri: prog.coverImage }} style={styles.progImage} />
-            ) : (
-              <View style={[styles.progImage, { backgroundColor: '#1e293b' }]} />
-            )}
-            <View style={styles.progCardBody}>
-              <View style={styles.badgeRow}>
-                <View style={[styles.scoreBadge, !isDirect && { backgroundColor: '#374151' }]}>
-                  {isDirect && <CheckCircle2 color="#34d399" size={11} style={{ marginRight: 3 }} />}
-                  <Text style={[styles.scoreText, !isDirect && { color: '#d1d5db' }]}>
-                    {prog?.matchScore || 0}% {isDirect ? 'Eligible' : 'Match'}
-                  </Text>
-                </View>
-                <Text style={styles.reqAps}>Req APS: {requiredAps}</Text>
-              </View>
-
-              <Text style={styles.progTitle}>{progTitle}</Text>
-              <Text style={styles.progUni}>
-                {prog?.universityName || 'South African University'}
-                {prog?.faculty ? ` • ${prog.faculty}` : ''}
-              </Text>
-
-              <View style={styles.progFooter}>
-                <View style={styles.locationWrap}>
-                  <MapPin color="#71717a" size={13} />
-                  <Text style={styles.locationText}>{prog?.location || 'South Africa'}</Text>
-                </View>
-                <Text style={styles.detailLink}>Details →</Text>
-              </View>
-            </View>
+      {displayedMatches.length === 0 ? (
+        <View style={styles.emptyMatchesBox}>
+          <Text style={styles.emptyTitle}>No matches calculated yet</Text>
+          <Text style={styles.emptySub}>Scan your high school report card or enter marks to unlock personalized university matches.</Text>
+          <AnimatedPressable style={styles.emptyActionBtn} onPress={() => onNavigate('scan')}>
+            <Text style={styles.emptyActionText}>Scan Report Card</Text>
           </AnimatedPressable>
-        );
-      })}
+        </View>
+      ) : (
+        displayedMatches.map((prog, index) => {
+          const isDirect = prog?.status === 'DIRECT_MATCH' || prog?.status === 'eligible';
+          const progTitle = prog?.title || prog?.name || 'Degree Programme';
+          const requiredAps = prog?.requiredAps || prog?.min_aps || '--';
+
+          return (
+            <AnimatedPressable
+              key={prog?.id || `${progTitle}-${index}`}
+              style={styles.progCard}
+              onPress={() => onSelectProgram(prog)}
+            >
+              {prog?.coverImage ? (
+                <Image source={{ uri: prog.coverImage }} style={styles.progImage} />
+              ) : (
+                <View style={[styles.progImage, { backgroundColor: '#1e293b' }]} />
+              )}
+              <View style={styles.progCardBody}>
+                <View style={styles.badgeRow}>
+                  <View style={[styles.scoreBadge, !isDirect && { backgroundColor: '#374151' }]}>
+                    {isDirect && <CheckCircle2 color="#34d399" size={11} style={{ marginRight: 3 }} />}
+                    <Text style={[styles.scoreText, !isDirect && { color: '#d1d5db' }]}>
+                      {prog?.matchScore || 0}% {isDirect ? 'Eligible' : 'Match'}
+                    </Text>
+                  </View>
+                  <Text style={styles.reqAps}>Req APS: {requiredAps}</Text>
+                </View>
+
+                <Text style={styles.progTitle}>{progTitle}</Text>
+                <Text style={styles.progUni}>
+                  {prog?.universityName || 'South African University'}
+                  {prog?.faculty ? ` • ${prog.faculty}` : ''}
+                </Text>
+
+                <View style={styles.progFooter}>
+                  <View style={styles.locationWrap}>
+                    <MapPin color="#71717a" size={13} />
+                    <Text style={styles.locationText}>{prog?.location || 'South Africa'}</Text>
+                  </View>
+                  <Text style={styles.detailLink}>Details →</Text>
+                </View>
+              </View>
+            </AnimatedPressable>
+          );
+        })
+      )}
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Key Admission Dates</Text>
@@ -201,19 +332,51 @@ const styles = StyleSheet.create({
   brandSub: { color: '#71717a', fontSize: 12 },
   bellBtn: { padding: 8, backgroundColor: '#141416', borderRadius: 20, position: 'relative' },
   unreadDot: { width: 8, height: 8, backgroundColor: '#3b82f6', borderRadius: 4, position: 'absolute', top: 6, right: 6 },
-  heroCard: { backgroundColor: '#1e3a8a', padding: 20, borderRadius: 16, marginBottom: 16 },
-  heroGreeting: { color: '#ffffff', fontSize: 22, fontWeight: 'bold' },
-  heroText: { color: '#bfdbfe', fontSize: 13, marginTop: 6, lineHeight: 18 },
-  boldAps: { color: '#ffffff', fontWeight: 'bold' },
-  heroBtn: { backgroundColor: '#ffffff', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginTop: 14, alignSelf: 'flex-start' },
-  heroBtnText: { color: '#1d4ed8', fontWeight: 'bold', fontSize: 12 },
+  
+  heroCard: { 
+    backgroundColor: '#141416', 
+    padding: 20, 
+    borderRadius: 16, 
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#27272a',
+    borderLeftWidth: 4,
+    borderLeftColor: '#3b82f6',
+  },
+  heroGreeting: { color: '#f4f4f5', fontSize: 22, fontWeight: 'bold' },
+  heroText: { color: '#a1a1aa', fontSize: 13, marginTop: 6, lineHeight: 18 },
+  boldAps: { color: '#60a5fa', fontWeight: 'bold' },
+  heroBtn: { 
+    backgroundColor: '#2563eb', 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 8, 
+    paddingHorizontal: 16, 
+    paddingVertical: 10, 
+    borderRadius: 20, 
+    marginTop: 16, 
+    alignSelf: 'flex-start' 
+  },
+  heroBtnText: { color: '#ffffff', fontWeight: 'bold', fontSize: 12 },
+
   scanCta: { backgroundColor: '#141416', padding: 18, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: '#27272a', marginBottom: 20 },
   scanIconWrap: { backgroundColor: '#1e293b', padding: 12, borderRadius: 12, marginBottom: 8 },
   scanTitle: { color: '#f4f4f5', fontSize: 16, fontWeight: 'bold' },
   scanSub: { color: '#a1a1aa', fontSize: 12, marginTop: 4, textAlign: 'center' },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 4 },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sectionTitle: { color: '#f4f4f5', fontSize: 18, fontWeight: 'bold' },
   sectionLink: { color: '#60a5fa', fontSize: 13, fontWeight: '600' },
+  sectionDesc: { color: '#a1a1aa', fontSize: 12, marginTop: -8, marginBottom: 12 },
+  uniScrollContainer: { gap: 12, paddingBottom: 16 },
+  uniCard: { width: 150, height: 195, borderRadius: 14, overflow: 'hidden', backgroundColor: '#141416', borderWidth: 1, borderColor: '#27272a', position: 'relative', justifyContent: 'flex-end' },
+  uniImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  uniOverlay: { ...StyleSheet.absoluteFillObject },
+  uniContent: { padding: 10, gap: 3, zIndex: 2 },
+  uniName: { color: '#f4f4f5', fontSize: 12, fontWeight: 'bold', lineHeight: 16 },
+  uniLocation: { color: '#a1a1aa', fontSize: 9 },
+  prospectusLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  prospectusLinkText: { color: '#60a5fa', fontSize: 10, fontWeight: '700' },
   progCard: { backgroundColor: '#141416', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#27272a', marginBottom: 14 },
   progImage: { width: '100%', height: 130 },
   progCardBody: { padding: 14 },
@@ -227,6 +390,11 @@ const styles = StyleSheet.create({
   locationWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   locationText: { color: '#71717a', fontSize: 12 },
   detailLink: { color: '#60a5fa', fontSize: 12, fontWeight: '600' },
+  emptyMatchesBox: { backgroundColor: '#141416', borderRadius: 16, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: '#27272a', gap: 8, marginBottom: 14 },
+  emptyTitle: { color: '#f4f4f5', fontSize: 15, fontWeight: 'bold' },
+  emptySub: { color: '#a1a1aa', fontSize: 12, textAlign: 'center', lineHeight: 17 },
+  emptyActionBtn: { backgroundColor: '#2563eb', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, marginTop: 4 },
+  emptyActionText: { color: '#ffffff', fontWeight: 'bold', fontSize: 12 },
   deadlineBox: { backgroundColor: '#141416', borderRadius: 16, padding: 8, borderWidth: 1, borderColor: '#27272a' },
   deadlineRow: { flexDirection: 'row', alignItems: 'center', padding: 10, gap: 12 },
   dateBadge: { backgroundColor: '#27272a', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6, alignItems: 'center', width: 44 },

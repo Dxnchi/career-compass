@@ -1,7 +1,8 @@
-// src/screens/ProfileScreen.js
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { Settings, History, Camera, Mail, ShieldCheck, Eye, EyeOff } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { Settings, ChevronRight, FileText, Trash2, Calendar, Award } from 'lucide-react-native';
+import { fetchUserScans, deleteScan } from '../lib/scanStore';
+import AnimatedPressable from '../components/AnimatedPressable';
 
 export default function ProfileScreen({
   user = {},
@@ -9,151 +10,171 @@ export default function ProfileScreen({
   onNavigateSettings = () => {},
   onNavigate = () => {},
 }) {
-  const [showFullId, setShowFullId] = useState(false);
-  const settingsAction = onNavigateSettings || (() => onNavigate('settings'));
+  const [scans, setScans] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const getInitials = (fullName) => {
-    if (!fullName || typeof fullName !== 'string') return 'S';
-    const trimmed = fullName.trim();
-    if (!trimmed) return 'S';
-    const names = trimmed.split(' ').filter(Boolean);
-    if (names.length >= 2) {
-      return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
-    }
-    return trimmed.slice(0, 2).toUpperCase();
+  useEffect(() => {
+    loadScans();
+  }, []);
+
+  const loadScans = async () => {
+    setLoading(true);
+    const history = await fetchUserScans();
+    setScans(history);
+    setLoading(false);
   };
 
-  const getMatricYear = (gradeStr) => {
-    const currentYear = new Date().getFullYear();
-    const clean = (typeof gradeStr === 'string' ? gradeStr : '').toLowerCase();
-    if (clean.includes('10')) return currentYear + 2;
-    if (clean.includes('11')) return currentYear + 1;
-    return currentYear;
+  const handleDeleteScan = (scanId) => {
+    Alert.alert(
+      "Delete Scan Record",
+      "Are you sure you want to permanently delete this scan? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive", 
+          onPress: async () => {
+            try {
+              await deleteScan(scanId);
+              setScans((prevScans) => prevScans.filter((scan) => scan.id !== scanId));
+            } catch (error) {
+              Alert.alert("Error", "Could not delete the scan. Please try again.");
+            }
+          } 
+        }
+      ]
+    );
   };
 
-  const formatIdNumber = (idStr) => {
-    const raw = String(idStr || '').replace(/\s+/g, '');
-    if (raw.length !== 13) return 'Unverified ID';
-    if (showFullId) {
-      return `${raw.slice(0, 6)} ${raw.slice(6, 10)} ${raw.slice(10, 12)} ${raw.slice(12)}`;
-    }
-    return `${raw.slice(0, 6)} •••• ${raw.slice(10, 12)} •`;
+  const formatDate = (isoString) => {
+    const date = new Date(isoString);
+    return date.toLocaleDateString('en-ZA', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
-
-  const hasValidId = String(user?.idNumber || user?.id_number || '').replace(/\s+/g, '').length === 13;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Learner Profile</Text>
-        <TouchableOpacity style={styles.gearBtn} onPress={settingsAction}>
+        <Text style={styles.headerTitle}>My Profile</Text>
+        <TouchableOpacity style={styles.settingsBtn} onPress={onNavigateSettings}>
           <Settings color="#a1a1aa" size={20} />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.avatarCard}>
-        {user?.avatar ? (
-          <Image source={{ uri: user.avatar }} style={styles.avatarImg} />
-        ) : (
-          <View style={styles.avatarFallback}>
-            <Text style={styles.avatarText}>{getInitials(user?.name)}</Text>
-          </View>
-        )}
-        <Text style={styles.userName}>{user?.name || 'Learner'}</Text>
-        <Text style={styles.userGrade}>{user?.grade || 'Grade 12'}</Text>
-        <Text style={styles.userSchool}>{user?.school || 'Secondary School'}</Text>
-
-        {user?.email && (
-          <View style={styles.emailRow}>
-            <Mail color="#71717a" size={12} />
-            <Text style={styles.emailText}>{user.email}</Text>
-          </View>
-        )}
-
-        {/* Verified SA ID Badge */}
-        {hasValidId && (
-          <TouchableOpacity
-            style={styles.idBadge}
-            activeOpacity={0.8}
-            onPress={() => setShowFullId(!showFullId)}
-          >
-            <ShieldCheck color="#34d399" size={14} />
-            <Text style={styles.idBadgeText}>
-              SA ID: {formatIdNumber(user?.idNumber || user?.id_number)}
-            </Text>
-            {showFullId ? (
-              <EyeOff color="#71717a" size={13} />
-            ) : (
-              <Eye color="#71717a" size={13} />
-            )}
-          </TouchableOpacity>
-        )}
+      <View style={styles.userCard}>
+        <View style={styles.avatarCircle}>
+          <Text style={styles.avatarText}>{user?.name ? user.name.charAt(0).toUpperCase() : 'S'}</Text>
+        </View>
+        <View style={styles.userInfo}>
+          <Text style={styles.userName}>{user?.name || 'Student'}</Text>
+          <Text style={styles.userDetails}>{user?.grade || 'Grade 12'} • {user?.school || 'Secondary School'}</Text>
+        </View>
       </View>
 
-      <View style={styles.statGrid}>
-        <View style={styles.statItem}>
-          <Text style={styles.statVal}>{currentAps}</Text>
-          <Text style={styles.statLabel}>APS Score</Text>
+      <View style={styles.apsCard}>
+        <View style={styles.apsLeft}>
+          <Award color="#3b82f6" size={24} />
+          <View style={styles.apsTextWrap}>
+            <Text style={styles.apsLabel}>Active APS Score</Text>
+            <Text style={styles.apsSub}>Used for your current degree matches</Text>
+          </View>
         </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statVal}>NSC</Text>
-          <Text style={styles.statLabel}>Curriculum</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statVal}>{getMatricYear(user?.grade)}</Text>
-          <Text style={styles.statLabel}>Matric Year</Text>
-        </View>
+        <Text style={styles.apsValue}>{currentAps > 0 ? currentAps : '--'}</Text>
       </View>
 
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Archived Scans</Text>
-        <TouchableOpacity onPress={() => onNavigate('scan')} style={styles.newScanBtn}>
-          <Camera color="#60a5fa" size={14} />
-          <Text style={styles.newScanText}>New Scan</Text>
-        </TouchableOpacity>
+        <Text style={styles.sectionTitle}>Scan History</Text>
       </View>
 
-      <TouchableOpacity
-        style={styles.scanItem}
-        onPress={() => onNavigate('confirm_grades')}
-      >
-        <History color="#60a5fa" size={20} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.scanTitle}>Latest NSC Statement / Report</Text>
-          <Text style={styles.scanDate}>Tap to review and adjust marks</Text>
+      {loading ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator size="small" color="#3b82f6" />
+          <Text style={styles.loadingText}>Loading your past scans...</Text>
         </View>
-        <Text style={styles.scanAps}>{currentAps} APS</Text>
-      </TouchableOpacity>
+      ) : scans.length === 0 ? (
+        <View style={styles.emptyBox}>
+          <FileText color="#71717a" size={32} />
+          <Text style={styles.emptyTitle}>No scans yet</Text>
+          <Text style={styles.emptySub}>Your report card scans will appear here.</Text>
+          <AnimatedPressable style={styles.scanActionBtn} onPress={() => onNavigate('scan')}>
+            <Text style={styles.scanActionText}>Scan Now</Text>
+          </AnimatedPressable>
+        </View>
+      ) : (
+        <View style={styles.scanList}>
+          {scans.map((scan) => {
+            const storedAps = Array.isArray(scan.grades) 
+              ? scan.grades.reduce((sum, subj) => sum + (subj.level || 0), 0) 
+              : 0;
+
+            return (
+              <View key={scan.id} style={styles.scanCard}>
+                <View style={styles.scanIconWrap}>
+                  <FileText color="#60a5fa" size={20} />
+                </View>
+                <View style={styles.scanInfo}>
+                  <Text style={styles.scanTitle}>Report Card Scan</Text>
+                  <View style={styles.scanMeta}>
+                    <Calendar color="#71717a" size={12} />
+                    <Text style={styles.scanDate}>{formatDate(scan.created_at)}</Text>
+                  </View>
+                  <Text style={styles.scanAps}>Calculated APS: <Text style={styles.scanApsHighlight}>{storedAps}</Text></Text>
+                </View>
+                
+                <TouchableOpacity 
+                  style={styles.deleteBtn} 
+                  onPress={() => handleDeleteScan(scan.id)}
+                >
+                  <Trash2 color="#f87171" size={18} />
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </View>
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#0a0a0a', flexGrow: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  headerTitle: { color: '#f4f4f5', fontSize: 20, fontWeight: 'bold' },
-  gearBtn: { padding: 8, backgroundColor: '#141416', borderRadius: 20 },
-  avatarCard: { backgroundColor: '#141416', padding: 20, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: '#27272a', marginBottom: 16 },
-  avatarImg: { width: 80, height: 80, borderRadius: 40, marginBottom: 10 },
-  avatarFallback: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#1e3a8a', justifyContent: 'center', alignItems: 'center', marginBottom: 10, borderWidth: 2, borderColor: '#3b82f6' },
-  avatarText: { color: '#ffffff', fontSize: 24, fontWeight: 'bold' },
+  container: { padding: 16, paddingBottom: 40, backgroundColor: '#0a0a0a', flexGrow: 1 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, marginTop: 8 },
+  headerTitle: { color: '#f4f4f5', fontSize: 24, fontWeight: 'bold' },
+  settingsBtn: { backgroundColor: '#141416', padding: 10, borderRadius: 20, borderWidth: 1, borderColor: '#27272a' },
+  userCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#141416', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#27272a', marginBottom: 16 },
+  avatarCircle: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#1e3a8a', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+  avatarText: { color: '#ffffff', fontSize: 20, fontWeight: 'bold' },
+  userInfo: { flex: 1 },
   userName: { color: '#f4f4f5', fontSize: 18, fontWeight: 'bold' },
-  userGrade: { color: '#60a5fa', fontSize: 13, marginTop: 2 },
-  userSchool: { color: '#71717a', fontSize: 12, marginTop: 2 },
-  emailRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  emailText: { color: '#71717a', fontSize: 11 },
-  idBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#064e3b', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, marginTop: 10, borderWidth: 1, borderColor: '#047857' },
-  idBadgeText: { color: '#34d399', fontSize: 11, fontWeight: 'bold' },
-  statGrid: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  statItem: { flex: 1, backgroundColor: '#141416', padding: 14, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: '#27272a' },
-  statVal: { color: '#f4f4f5', fontSize: 18, fontWeight: 'bold' },
-  statLabel: { color: '#71717a', fontSize: 11, marginTop: 4 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  sectionTitle: { color: '#f4f4f5', fontSize: 16, fontWeight: 'bold' },
-  newScanBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#1e293b', borderRadius: 8 },
-  newScanText: { color: '#60a5fa', fontSize: 12, fontWeight: '600' },
-  scanItem: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#141416', padding: 14, borderRadius: 14, borderWidth: 1, borderColor: '#27272a' },
-  scanTitle: { color: '#f4f4f5', fontSize: 14, fontWeight: '600' },
-  scanDate: { color: '#71717a', fontSize: 11, marginTop: 2 },
-  scanAps: { color: '#34d399', fontWeight: 'bold', fontSize: 14 },
+  userDetails: { color: '#a1a1aa', fontSize: 13, marginTop: 2 },
+  apsCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#141416', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#27272a', marginBottom: 24 },
+  apsLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  apsTextWrap: { gap: 2 },
+  apsLabel: { color: '#f4f4f5', fontSize: 14, fontWeight: '600' },
+  apsSub: { color: '#71717a', fontSize: 11 },
+  apsValue: { color: '#60a5fa', fontSize: 24, fontWeight: 'bold' },
+  sectionHeader: { marginBottom: 12 },
+  sectionTitle: { color: '#f4f4f5', fontSize: 18, fontWeight: 'bold' },
+  scanList: { gap: 12 },
+  scanCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#141416', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#27272a' },
+  scanIconWrap: { backgroundColor: '#1e293b', padding: 12, borderRadius: 12, marginRight: 12 },
+  scanInfo: { flex: 1, gap: 4 },
+  scanTitle: { color: '#f4f4f5', fontSize: 15, fontWeight: '600' },
+  scanMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  scanDate: { color: '#a1a1aa', fontSize: 12 },
+  scanAps: { color: '#71717a', fontSize: 12, marginTop: 2 },
+  scanApsHighlight: { color: '#f4f4f5', fontWeight: 'bold' },
+  deleteBtn: { padding: 10, backgroundColor: '#2a1215', borderRadius: 12, borderWidth: 1, borderColor: '#451a03' },
+  loadingBox: { padding: 40, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  loadingText: { color: '#a1a1aa', fontSize: 13 },
+  emptyBox: { backgroundColor: '#141416', borderRadius: 16, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: '#27272a', gap: 10 },
+  emptyTitle: { color: '#f4f4f5', fontSize: 16, fontWeight: 'bold' },
+  emptySub: { color: '#a1a1aa', fontSize: 12, textAlign: 'center' },
+  scanActionBtn: { backgroundColor: '#2563eb', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, marginTop: 8 },
+  scanActionText: { color: '#ffffff', fontWeight: 'bold', fontSize: 12 },
 });

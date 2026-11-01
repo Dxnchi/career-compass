@@ -39,7 +39,7 @@ export default function AdminUsersScreen({ onBack = () => {} }) {
   const [showPriorSection, setShowPriorSection] = useState(false);
   const [showRegisteredSection, setShowRegisteredSection] = useState(false);
 
-const fetchUsers = async () => {
+  const fetchUsers = async () => {
     try {
       // 1. Fetch existing profiles
       const { data: profiles, error } = await supabase
@@ -56,6 +56,7 @@ const fetchUsers = async () => {
       setRefreshing(false);
     }
   };
+
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -219,7 +220,7 @@ const fetchUsers = async () => {
               </View>
               {activeUsers.length > 0 ? (
                 activeUsers.map((item) => (
-                  <View key={item.id} style={[styles.userCard, styles.activeCardBorder]} >
+                  <View key={item.id} style={[styles.userCard, styles.activeCardBorder]}>
                     <View style={styles.userInfo}>
                       <View style={styles.nameRow}>
                         <Text style={styles.userName}>{item.name || 'Unnamed Student'}</Text>
@@ -266,7 +267,9 @@ const fetchUsers = async () => {
                   <View key={item.id} style={styles.userCard}>
                     <View style={styles.userInfo}>
                       <Text style={styles.userName}>{item.name || 'Student'}</Text>
-                      <Text style={styles.schoolText}>{item.school || 'Secondary School'}</Text>
+                      <Text style={styles.schoolText}>
+                        {item.school || 'Secondary School'} • {item.grade || 'Grade 12'}
+                      </Text>
                       {renderUserIdRow(item)}
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
