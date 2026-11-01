@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { StyleSheet, StatusBar, Animated, Platform } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { useFonts, Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 
 import {
   INITIAL_USER_PROFILE,
@@ -46,10 +47,17 @@ export default function App() {
   // Grades from the latest scan, held here until the student confirms them
   const [pendingGrades, setPendingGrades] = useState(INITIAL_SUBJECT_GRADES);
   const [scanMeta, setScanMeta] = useState(null);
-  const [programs, setPrograms] = useState(INITIAL_PROGRAM_MATCHES);
+  const [programmes, setPrograms] = useState(INITIAL_PROGRAM_MATCHES);
   const [universities, setUniversities] = useState([]);
   const [selectedProgram, setSelectedProgram] = useState(INITIAL_PROGRAM_MATCHES[0]);
   const [appModalVisible, setAppModalVisible] = useState(false);
+
+  // Load custom fonts
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const translateYAnim = useRef(new Animated.Value(0)).current;
@@ -171,8 +179,8 @@ export default function App() {
   }, [grades]);
 
   const dynamicMatches = useMemo(() => {
-    if (!programs || programs.length === 0) return [];
-    const evaluated = evaluateStudentEligibility(grades, programs);
+    if (!programmes || programmes.length === 0) return [];
+    const evaluated = evaluateStudentEligibility(grades, programmes);
 
     return evaluated.map((result) => {
       const requiredAps = result.minAPS || 0;
@@ -195,7 +203,7 @@ export default function App() {
         isEligible: result.status === 'DIRECT_MATCH',
       };
     });
-  }, [grades, programs, currentAps]);
+  }, [grades, programmes, currentAps]);
 
   const handleAuthSuccess = async (authenticatedUser) => {
     let role = authenticatedUser.role || 'student';
@@ -264,8 +272,12 @@ export default function App() {
     currentScreen !== 'confirm_grades' &&
     currentScreen !== 'admin_users';
 
-  // Hide the floating bot on welcome/auth screens so it doesn't clutter login inputs
   const showAdvisorBot = currentScreen !== 'welcome' && currentScreen !== 'auth';
+
+  // Prevent rendering until custom fonts are loaded
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <SafeAreaProvider>
