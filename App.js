@@ -1,3 +1,4 @@
+// App.js
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { StyleSheet, SafeAreaView, StatusBar, Animated, Platform } from 'react-native';
 
@@ -19,6 +20,7 @@ import { saveScan } from './src/lib/scanStore';
 // Components & Modals
 import Navigation from './src/components/Navigation';
 import ApplicationModal from './src/components/ApplicationModal';
+import FloatingAdvisorBot from './src/components/FloatingAdvisorBot';
 
 // Screens
 import WelcomeScreen from './src/screens/WelcomeScreen';
@@ -261,6 +263,9 @@ export default function App() {
     currentScreen !== 'confirm_grades' &&
     currentScreen !== 'admin_users';
 
+  // Hide the floating bot on welcome/auth screens so it doesn't clutter login inputs
+  const showAdvisorBot = currentScreen !== 'welcome' && currentScreen !== 'auth';
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0a0a0a" />
@@ -329,7 +334,7 @@ export default function App() {
 
         {currentScreen === 'program_detail' && (
           <ProgramDetailScreen
-            program={selectedProgram}
+            program={{ ...selectedProgram, userGrades: grades }}
             onBack={() => navigateWithAnimation('matches')}
             onStartApplication={() => setAppModalVisible(true)}
           />
@@ -383,6 +388,10 @@ export default function App() {
           currentScreen={currentScreen}
           onNavigate={navigateWithAnimation}
         />
+      )}
+
+      {showAdvisorBot && (
+        <FloatingAdvisorBot currentScreen={currentScreen} />
       )}
 
       <ApplicationModal
