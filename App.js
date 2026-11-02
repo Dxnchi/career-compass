@@ -14,7 +14,6 @@ import {
 } from './src/data/dataStore';
 
 // Utilities & Services
-import { calculateAPS } from './src/utils/apsCalculator';
 import { evaluateStudentEligibility } from './src/services/matchingEngine';
 import { supabase } from './src/lib/supabase';
 import { saveScan } from './src/lib/scanStore';
@@ -41,9 +40,14 @@ import AdminUsersScreen from './src/screens/AdminUsersScreen';
 const USE_NATIVE_DRIVER = Platform.OS !== 'web';
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState('welcome');
+  // Initialize directly to 'auth' so fresh launches land on sign in/register for your presentation
+  const [currentScreen, setCurrentScreen] = useState('auth');
   const [user, setUser] = useState(INITIAL_USER_PROFILE || null);
   const [grades, setGrades] = useState(INITIAL_SUBJECT_GRADES);
+  
+  // Manage APS dynamically via state instead of useMemo calculation
+  const [currentAps, setCurrentAps] = useState(0); 
+
   // Grades from the latest scan, held here until the student confirms them
   const [pendingGrades, setPendingGrades] = useState(INITIAL_SUBJECT_GRADES);
   const [scanMeta, setScanMeta] = useState(null);
@@ -128,16 +132,24 @@ export default function App() {
               setUser(activeUser);
               recordUserActivity(session.user.id, true);
               navigateWithAnimation('home');
+            } else {
+              // If session exists but profile is missing, force auth screen
+              setUser(null);
+              navigateWithAnimation('auth');
             }
           });
+      } else {
+        // If no active session exists on startup, force auth screen for presentation flow
+        setUser(null);
+        setCurrentScreen('auth');
       }
     });
 
     // 2. Auth state subscription
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
-        setUser(INITIAL_USER_PROFILE || null);
-        navigateWithAnimation('welcome');
+        setUser(null);
+        navigateWithAnimation('auth'); // Drop cleanly back to auth screen on sign out
       }
     });
 
@@ -173,10 +185,6 @@ export default function App() {
     return () => clearInterval(interval);
   }, [user?.id]);
 
-  const currentAps = useMemo(() => {
-    const { totalAPS } = calculateAPS(grades);
-    return totalAPS;
-  }, [grades]);
 
   const dynamicMatches = useMemo(() => {
     if (!programmes || programmes.length === 0) return [];
@@ -232,7 +240,8 @@ export default function App() {
       console.warn('Sign out notice:', e.message);
     }
     setUser(null);
-    navigateWithAnimation('welcome');
+    setCurrentAps(0); // Reset APS on logout
+    navigateWithAnimation('auth'); // Route back to AuthScreen on logout
   };
 
   const handleScanDone = (scannedGrades, meta = null) => {
@@ -243,9 +252,12 @@ export default function App() {
     navigateWithAnimation('confirm_grades');
   };
 
-  const handleGradesConfirmed = async (finalGrades) => {
+  const handleGradesConfirmed = async (finalGrades, calculatedAps) => {
     if (Array.isArray(finalGrades)) {
       setGrades(finalGrades);
+      if (typeof calculatedAps === 'number') {
+        setCurrentAps(calculatedAps); // Update APS state so matches compute instantly
+      }
       try {
         await saveScan({
           grades: finalGrades,
@@ -254,7 +266,7 @@ export default function App() {
           source: scanMeta?.source || 'ocr',
         });
       } catch (e) {
-        // Saving locally failed; the grades are still in memory so matching continues
+        // Saving locally failed; grades remain in state for matching
       }
     }
     navigateWithAnimation('matches');
@@ -374,8 +386,8 @@ export default function App() {
           {currentScreen === 'profile' && (
             <ProfileScreen
               user={user || { name: 'Student', school: 'Secondary School', grade: 'Grade 12' }}
-              aps={currentAps}
               currentAps={currentAps}
+              onUpdateAps={setCurrentAps} // Passes dynamically calculated APS upwards
               onNavigateSettings={() => navigateWithAnimation('settings')}
               onNavigate={navigateWithAnimation}
             />

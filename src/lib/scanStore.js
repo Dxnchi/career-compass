@@ -1,9 +1,6 @@
 // src/lib/scanStore.js
 import { supabase } from './supabase';
 
-/**
- * Saves a new scan to the Supabase 'scans' table for the logged-in user.
- */
 export async function saveScan({ grades, imageUri = null, rawText = '', source = 'ocr' }) {
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -25,6 +22,10 @@ export async function saveScan({ grades, imageUri = null, rawText = '', source =
       .single();
 
     if (error) throw error;
+    
+    // Debug log to verify the URL was successfully written to the database
+    console.log("Saved Scan Data - Image URI:", data.image_uri);
+    
     return data;
   } catch (error) {
     console.error('Error saving scan to Supabase:', error);
@@ -32,9 +33,6 @@ export async function saveScan({ grades, imageUri = null, rawText = '', source =
   }
 }
 
-/**
- * Fetches all previous scans for the logged-in user, ordered by newest first.
- */
 export async function fetchUserScans() {
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -54,9 +52,6 @@ export async function fetchUserScans() {
   }
 }
 
-/**
- * Deletes a specific scan by its ID from Supabase.
- */
 export async function deleteScan(scanId) {
   try {
     const { error } = await supabase

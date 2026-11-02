@@ -9,6 +9,8 @@ import {
   TextInput,
   ActivityIndicator,
   RefreshControl,
+  Alert,
+  Platform,
 } from 'react-native';
 import {
   ArrowLeft,
@@ -24,6 +26,7 @@ import {
   ChevronDown,
   ChevronUp,
   RefreshCw,
+  Trash2,
 } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
 
@@ -33,6 +36,7 @@ export default function AdminUsersScreen({ onBack = () => {} }) {
   const [refreshing, setRefreshing] = useState(false);
   const [revealIds, setRevealIds] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
 
   // Collapsible section toggles
   const [showActiveSection, setShowActiveSection] = useState(true);
@@ -85,6 +89,45 @@ export default function AdminUsersScreen({ onBack = () => {} }) {
     if (!dateStr) return 'Never';
     const d = new Date(dateStr);
     return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Handle Secure User Deletion via Edge Function
+  const handleDeleteUser = (userId, userName) => {
+    const confirmAction = async () => {
+      try {
+        setDeletingId(userId);
+        const { data, error } = await supabase.functions.invoke('delete-user', {
+          body: { userId },
+        });
+
+        if (error) throw error;
+
+        // Refresh list instantly after deletion
+        fetchUsers();
+      } catch (err) {
+        console.error('Error deleting user:', err);
+        if (Platform.OS !== 'web') {
+          Alert.alert('Error', err.message || 'Failed to delete user.');
+        }
+      } finally {
+        setDeletingId(null);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Are you sure you want to delete ${userName || 'this user'}? This action cannot be undone.`)) {
+        confirmAction();
+      }
+    } else {
+      Alert.alert(
+        'Delete User',
+        `Are you sure you want to delete ${userName || 'this user'}? This will permanently remove their profile and data.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: confirmAction },
+        ]
+      );
+    }
   };
 
   // Filter users based on search query (Name, School, or ID)
@@ -239,9 +282,22 @@ export default function AdminUsersScreen({ onBack = () => {} }) {
                       </View>
                       {renderUserIdRow(item)}
                     </View>
-                    <View style={styles.statusWrap}>
-                      <View style={styles.greenDot} />
-                      <Text style={styles.onlineText}>Online</Text>
+                    <View style={styles.cardRightWrap}>
+                      <View style={styles.statusWrap}>
+                        <View style={styles.greenDot} />
+                        <Text style={styles.onlineText}>Online</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.deleteBtn}
+                        onPress={() => handleDeleteUser(item.id, item.name)}
+                        disabled={deletingId === item.id}
+                      >
+                        {deletingId === item.id ? (
+                          <ActivityIndicator size="small" color="#f87171" />
+                        ) : (
+                          <Trash2 color="#f87171" size={16} />
+                        )}
+                      </TouchableOpacity>
                     </View>
                   </View>
                 ))
@@ -272,11 +328,24 @@ export default function AdminUsersScreen({ onBack = () => {} }) {
                       </Text>
                       {renderUserIdRow(item)}
                     </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={styles.metaLabel}>Last seen</Text>
-                      <Text style={styles.metaVal}>
-                        {formatDate(item.last_seen_at || item.last_sign_in_at)}
-                      </Text>
+                    <View style={styles.cardRightWrap}>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={styles.metaLabel}>Last seen</Text>
+                        <Text style={styles.metaVal}>
+                          {formatDate(item.last_seen_at || item.last_sign_in_at)}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.deleteBtn}
+                        onPress={() => handleDeleteUser(item.id, item.name)}
+                        disabled={deletingId === item.id}
+                      >
+                        {deletingId === item.id ? (
+                          <ActivityIndicator size="small" color="#f87171" />
+                        ) : (
+                          <Trash2 color="#f87171" size={16} />
+                        )}
+                      </TouchableOpacity>
                     </View>
                   </View>
                 ))
@@ -315,9 +384,22 @@ export default function AdminUsersScreen({ onBack = () => {} }) {
                       </Text>
                       {renderUserIdRow(item)}
                     </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={styles.metaLabel}>Registered</Text>
-                      <Text style={styles.metaVal}>{formatDate(item.updated_at || item.last_sign_in_at)}</Text>
+                    <View style={styles.cardRightWrap}>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={styles.metaLabel}>Registered</Text>
+                        <Text style={styles.metaVal}>{formatDate(item.updated_at || item.last_sign_in_at)}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.deleteBtn}
+                        onPress={() => handleDeleteUser(item.id, item.name)}
+                        disabled={deletingId === item.id}
+                      >
+                        {deletingId === item.id ? (
+                          <ActivityIndicator size="small" color="#f87171" />
+                        ) : (
+                          <Trash2 color="#f87171" size={16} />
+                        )}
+                      </TouchableOpacity>
                     </View>
                   </View>
                 ))
@@ -366,11 +448,13 @@ const styles = StyleSheet.create({
   schoolText: { color: '#71717a', fontSize: 12 },
   idRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   idText: { color: '#71717a', fontSize: 11, fontWeight: '600' },
+  cardRightWrap: { alignItems: 'flex-end', gap: 8 },
   statusWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   greenDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#10b981' },
   onlineText: { color: '#10b981', fontSize: 12, fontWeight: 'bold' },
   metaLabel: { color: '#71717a', fontSize: 10 },
   metaVal: { color: '#d4d4d8', fontSize: 11, fontWeight: '500', marginTop: 2 },
+  deleteBtn: { padding: 6, backgroundColor: '#2d1214', borderRadius: 8, borderWidth: 1, borderColor: '#7f1d1d', justifyContent: 'center', alignItems: 'center' },
   emptyBox: { padding: 18, alignItems: 'center', backgroundColor: '#141416', borderRadius: 12, marginTop: 8 },
   emptyText: { color: '#71717a', fontSize: 12 },
   regHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },

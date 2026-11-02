@@ -1,3 +1,4 @@
+// src/screens/ConfirmGradesScreen.js
 import React, { useState, useMemo } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, TextInput, Alert, Image, Modal, FlatList } from 'react-native';
 import { ArrowLeft, Trash2, Plus, CheckCircle2, RefreshCw, AlertTriangle, ChevronDown, Search, X } from 'lucide-react-native';
@@ -23,7 +24,6 @@ export default function ConfirmGradesScreen({
   const rawText = scanMeta?.rawText;
   const needsCheck = grades.filter((g) => g.confidence === 'low').length;
 
-  // Editing a row marks it as reviewed (clears the "check" flag).
   const updateRow = (id, patch) =>
     setGrades((prev) => prev.map((g) => (g.id === id ? { ...g, ...patch, confidence: 'high' } : g)));
 
@@ -36,7 +36,6 @@ export default function ConfirmGradesScreen({
 
   const handleDelete = (id) => setGrades((prev) => prev.filter((g) => g.id !== id));
 
-  // Every NSC subject that is not already on the list
   const addableSubjects = useMemo(() => getAddableSubjects(grades), [grades]);
   const visibleSubjects = useMemo(() => searchSubjects(addableSubjects, search), [addableSubjects, search]);
 
@@ -75,6 +74,8 @@ export default function ConfirmGradesScreen({
     setNewPercentage('');
   };
 
+  const totalAps = grades.reduce((s, g) => s + (Number(g?.level) || 0), 0);
+
   const handleConfirm = () => {
     if (grades.some((g) => !String(g.name).trim())) {
       Alert.alert('Missing subject name', 'Give every row a subject name, or delete the empty rows.');
@@ -93,11 +94,12 @@ export default function ConfirmGradesScreen({
       Alert.alert('APS Minimum', `You need at least ${MIN_SUBJECTS} NSC subjects to generate an accurate university APS score.`);
       return;
     }
-    // Strip the OCR-only flag before handing the grades to the rest of the app.
-    submitAction(grades.map(({ confidence, ...rest }) => ({ ...rest, percentage: Number(rest.percentage) })));
+    
+    const cleanedGrades = grades.map(({ confidence, ...rest }) => ({ ...rest, percentage: Number(rest.percentage) }));
+    
+    // Pass both the validated grades and the calculated total APS up to App.js
+    submitAction(cleanedGrades, totalAps);
   };
-
-  const totalAps = grades.reduce((s, g) => s + (Number(g?.level) || 0), 0);
 
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
@@ -271,8 +273,6 @@ const styles = StyleSheet.create({
   subjectCategory: { color: '#71717a', fontSize: 11 },
   levelPill: { backgroundColor: '#1e3a8a', paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6 },
   levelText: { color: '#bfdbfe', fontSize: 11, fontWeight: 'bold' },
-  loLevelPill: { backgroundColor: '#27272a' },
-  loLevelText: { color: '#a1a1aa' },
   percentInput: { backgroundColor: '#27272a', color: '#ffffff', width: 44, padding: 6, borderRadius: 6, textAlign: 'center', fontWeight: 'bold' },
   percentInputFlagged: { borderWidth: 1, borderColor: '#f59e0b' },
   percentSymbol: { color: '#71717a', fontSize: 12 },

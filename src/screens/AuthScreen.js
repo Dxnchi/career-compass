@@ -125,19 +125,24 @@ export default function AuthScreen({ onAuthSuccess = () => {}, onCancel = () => 
 
         if (data?.user) {
           const now = new Date().toISOString();
-          const { error: profileError } = await supabase.from('profiles').upsert({
-            id: data.user.id,
-            name: name.trim(),
-            id_number: cleanId,
-            school: school.trim(),
-            grade,
-            role: 'student',
-            last_sign_in_at: now,
-            last_seen_at: now,
-          });
+          
+          // CHANGE: Replaced .upsert() with .update()
+          // The SQL trigger already created the row with ID, Email, and Role.
+          // Now we just fill in the extra metadata.
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({
+              name: name.trim(),
+              id_number: cleanId,
+              school: school.trim(),
+              grade,
+              last_sign_in_at: now,
+              last_seen_at: now,
+            })
+            .eq('id', data.user.id); // Ensure we only update this specific user's row
 
           if (profileError) {
-            console.warn('Profile upsert notice:', profileError.message);
+            console.warn('Profile update notice:', profileError.message);
           }
 
           onAuthSuccess({
@@ -247,7 +252,7 @@ export default function AuthScreen({ onAuthSuccess = () => {}, onCancel = () => 
               <View style={styles.idFeedbackRow}>
                 {idValidation?.isValid ? (
                   <Text style={styles.idValidText}>
-                    ✓ Valid ID • DOB: {idValidation.dateOfBirth} • {idValidation.citizenship}
+                    ✓ Valid ID • DOB: {idValidation.dateOfBirth} - {idValidation.citizenship}
                   </Text>
                 ) : (
                   <Text style={styles.idInvalidText}>{idValidation?.error}</Text>

@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Camera, X, Image as ImageIcon, PenLine } from 'lucide-react-native';
 import { scanReportCard, describeScanError } from '../lib/ocr';
 import { manualEntryTemplate } from '../lib/grades';
+import { supabase } from '../lib/supabase'; // Import Supabase client
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -22,19 +23,57 @@ export default function ScanScreen({ onCancel, onClose, onScanComplete }) {
     if (typeof onScanComplete === 'function') onScanComplete(grades, meta);
   };
 
+  // Upload function integrated with Supabase (Storage ONLY)
+  const uploadScanToSupabase = async (uri) => {
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error("No user logged in to save scan");
+
+      // Convert image URI to Blob
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const fileName = `${user.id}/${Date.now()}.jpg`;
+
+      // Upload file to storage bucket
+      const { error: storageError } = await supabase.storage
+        .from('report_cards')
+        .upload(fileName, blob, { contentType: 'image/jpeg' });
+
+      if (storageError) throw storageError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('report_cards')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (e) {
+      console.warn("Upload to Supabase Storage failed:", e.message);
+      return null; // Return null on failure so OCR continues even if upload fails
+    }
+  };
+
   const processImage = async (uri, width) => {
     setError(null);
     setPreviewUri(uri);
     setBusy(true);
     try {
+      // 1. Scan image using OCR
       const { grades, rawText, imageUri } = await scanReportCard(uri, width);
+      
       if (!grades || grades.length === 0) {
         setError(
           "We couldn't find any subjects in that photo. Make sure the whole report is in the frame, flat and well lit, and try again."
         );
         return;
       }
-      finish(grades, { imageUri, rawText, source: 'ocr' });
+
+      // 2. Upload image to Supabase Storage asynchronously
+      const publicUrl = await uploadScanToSupabase(uri);
+
+      // 3. Finish and pass data up (scanStore.js will handle the database insert)
+      finish(grades, { imageUri: publicUrl || imageUri, rawText, source: 'ocr' });
+      
     } catch (e) {
       setError(describeScanError(e));
     } finally {
