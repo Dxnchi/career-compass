@@ -1,5 +1,5 @@
 // src/screens/MatchesScreen.js
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, Linking } from 'react-native';
 import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, AlertCircle, ExternalLink, ChevronRight } from 'lucide-react-native';
 
@@ -50,14 +50,36 @@ export default function MatchesScreen({
   onBack = () => {},
   onSelectProgram = () => {},
 }) {
-  const [filter, setFilter] = useState('all');
+  const [facultyFilter, setFacultyFilter] = useState('all');
+  const [universityFilter, setUniversityFilter] = useState('All');
 
   const safeMatches = Array.isArray(matches) ? matches : [];
 
+  // Extract unique universities dynamically from the matches list
+  const universities = useMemo(() => {
+    const set = new Set();
+    safeMatches.forEach((m) => {
+      const uni = m.universityName || m.university || m.institution;
+      if (uni) {
+        set.add(uni);
+      }
+    });
+    return ['All', ...Array.from(set)];
+  }, [safeMatches]);
+
+  // Filter matches by both Faculty category and University
   const filtered = safeMatches.filter((item) => {
     if (!item) return false;
+    
+    // Faculty Filter Check
     const facultyStr = item.faculty || item.category || '';
-    return matchesFacultyCategory(facultyStr, filter);
+    const matchesFaculty = matchesFacultyCategory(facultyStr, facultyFilter);
+
+    // University Filter Check
+    const uniName = item.universityName || item.university || item.institution || 'South African University';
+    const matchesUni = universityFilter === 'All' || uniName === universityFilter;
+
+    return matchesFaculty && matchesUni;
   });
 
   const openCourseUrl = async (url) => {
@@ -81,15 +103,37 @@ export default function MatchesScreen({
         <Text style={styles.headerTitle}>Your Degree Matches</Text>
       </View>
 
+      {/* University Filter Tabs */}
+      {universities.length > 1 && (
+        <View style={styles.filterWrapper}>
+          <Text style={styles.filterSectionTitle}>Filter by University</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar} contentContainerStyle={styles.filterContent}>
+            {universities.map((uni) => (
+              <TouchableOpacity
+                key={uni}
+                style={[styles.uniChip, universityFilter === uni && styles.uniChipActive]}
+                onPress={() => setUniversityFilter(uni)}
+              >
+                <Text style={[styles.uniChipLabel, universityFilter === uni && styles.uniChipLabelActive]}>
+                  {uni}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Faculty Filter Tabs */}
       <View style={styles.filterWrapper}>
+        <Text style={styles.filterSectionTitle}>Filter by Faculty</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar} contentContainerStyle={styles.filterContent}>
           {FACULTY_FILTERS.map((tab) => (
             <TouchableOpacity
               key={tab.id}
-              style={[styles.filterChip, filter === tab.id && styles.filterChipActive]}
-              onPress={() => setFilter(tab.id)}
+              style={[styles.filterChip, facultyFilter === tab.id && styles.filterChipActive]}
+              onPress={() => setFacultyFilter(tab.id)}
             >
-              <Text style={[styles.filterLabel, filter === tab.id && styles.filterLabelActive]}>
+              <Text style={[styles.filterLabel, facultyFilter === tab.id && styles.filterLabelActive]}>
                 {tab.label}
               </Text>
             </TouchableOpacity>
@@ -142,7 +186,7 @@ export default function MatchesScreen({
                   </View>
 
                   <Text style={styles.uniName}>
-                    {prog.universityName || 'South African University'}
+                    {prog.universityName || prog.university || prog.institution || 'South African University'}
                     {prog.faculty ? ` • ${prog.faculty}` : ''}
                   </Text>
 
@@ -166,7 +210,7 @@ export default function MatchesScreen({
                         Req APS: <Text style={styles.apsValue}>{prog.requiredAps || prog.min_aps || prog.minAPS || '--'}</Text>
                       </Text>
                       {hasStudentAps && (
-                        <Text style={styles.matchScore}> • {prog.matchScore || 0}% Match</Text>
+                        <Text style={styles.matchScore}> {prog.matchScore || 0}% Match</Text>
                       )}
                     </View>
 
@@ -194,7 +238,7 @@ export default function MatchesScreen({
             })
           ) : (
             <View style={styles.emptyWrap}>
-              <Text style={styles.emptyText}>No programmes found for this faculty filter.</Text>
+              <Text style={styles.emptyText}>No programmes found for this filter combination.</Text>
             </View>
           )}
         </View>
@@ -206,15 +250,20 @@ export default function MatchesScreen({
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#0a0a0a' },
   scrollContainer: { padding: 16, paddingBottom: 40 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
   headerTitle: { color: '#f4f4f5', fontSize: 20, fontWeight: 'bold' },
-  filterWrapper: { paddingHorizontal: 16, marginBottom: 16 },
+  filterWrapper: { paddingHorizontal: 16, marginBottom: 12 },
+  filterSectionTitle: { color: '#a1a1aa', fontSize: 11, fontWeight: '600', textTransform: 'uppercase', marginBottom: 6 },
   filterBar: { flexDirection: 'row', maxHeight: 40 },
   filterContent: { alignItems: 'center' },
   filterChip: { backgroundColor: '#141416', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8, borderWidth: 1, borderColor: '#27272a', height: 34, justifyContent: 'center' },
   filterChipActive: { backgroundColor: '#2563eb', borderColor: '#3b82f6' },
   filterLabel: { color: '#71717a', fontSize: 12, fontWeight: '600' },
   filterLabelActive: { color: '#ffffff' },
+  uniChip: { backgroundColor: '#141416', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, marginRight: 8, borderWidth: 1, borderColor: '#27272a', height: 32, justifyContent: 'center' },
+  uniChipActive: { backgroundColor: '#059669', borderColor: '#10b981' },
+  uniChipLabel: { color: '#71717a', fontSize: 11, fontWeight: '600' },
+  uniChipLabelActive: { color: '#ffffff' },
   cardList: { gap: 12 },
   card: { backgroundColor: '#141416', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#27272a' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 },
